@@ -1,8 +1,12 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { riderAuth, ApiError, type RiderSession } from "@/lib/api";
+import { env } from "@/lib/env";
+
+// Codes expire 3 minutes after they're issued (matches the API).
+const CODE_TTL_SECONDS = 180;
 
 function VerifyForm() {
   const router = useRouter();
@@ -10,17 +14,55 @@ function VerifyForm() {
 
   const phone = params.get("phone");
   const email = params.get("email");
-  const devCode = params.get("dev"); // only present in local dev
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  // Countdown until the current code expires.
+  const [secondsLeft, setSecondsLeft] = useState(CODE_TTL_SECONDS);
+  const [resending, setResending] = useState(false);
+  // Dev-only: the API echoes the code back; show it to speed up local testing.
+  const [devCode, setDevCode] = useState<string | null>(params.get("dev"));
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startCountdown = useCallback(() => {
+    setSecondsLeft(CODE_TTL_SECONDS);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    startCountdown();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [startCountdown]);
 
   const label = phone ? `+44${phone.replace("+44", "")}` : email ?? "";
+  const expired = secondsLeft === 0;
+  const mmss = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
-    if (code.length !== 6) { setError("Enter the 6-digit code"); return; }
+    if (code.length !== 6) {
+      setError("Enter the 6-digit code");
+      return;
+    }
+    if (expired) {
+      setError("This code has expired. Please request a new one.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -33,13 +75,31 @@ function VerifyForm() {
         setError("Missing phone or email");
         return;
       }
-      // Session cookie is set by the BFF on success.
       router.push(res.isProfileComplete ? "/" : "/auth/profile");
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Verification failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = phone
+        ? await riderAuth.sendOtp(phone)
+        : await riderAuth.resendEmail(email!);
+      setCode("");
+      setDevCode(env.isDev && res.devCode ? res.devCode : null);
+      startCountdown();
+      setInfo("A new code has been sent.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not resend the code");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -74,6 +134,12 @@ function VerifyForm() {
             </div>
           )}
 
+          {info && !error && (
+            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {info}
+            </div>
+          )}
+
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-700">
               6-digit code
@@ -92,12 +158,38 @@ function VerifyForm() {
             />
           </div>
 
+          {/* Expiry countdown */}
+          <p className="text-center text-sm text-zinc-500">
+            {expired ? (
+              <span className="text-red-500">Code expired</span>
+            ) : (
+              <>
+                Code expires in{" "}
+                <span className="font-semibold tabular-nums text-zinc-700">{mmss}</span>
+              </>
+            )}
+          </p>
+
           <button
             type="submit"
-            disabled={loading || code.length !== 6}
+            disabled={loading || code.length !== 6 || expired}
             className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? "Verifying…" : "Verify"}
+          </button>
+
+          {/* Resend — only enabled once the current code has expired */}
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending || !expired}
+            className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-zinc-400"
+          >
+            {resending
+              ? "Sending…"
+              : expired
+                ? "Resend code"
+                : `Resend available when the code expires`}
           </button>
 
           <button
@@ -113,7 +205,7 @@ function VerifyForm() {
   );
 }
 
-// useSearchParams requires Suspense boundary in Next.js App Router
+// useSearchParams requires a Suspense boundary in the Next.js App Router.
 export default function VerifyPage() {
   return (
     <Suspense>

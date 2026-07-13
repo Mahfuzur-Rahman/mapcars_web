@@ -1,23 +1,64 @@
 "use client";
 
+import "../auth.css";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { riderAuth, ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { normalizeUkPhone } from "@/lib/phone";
+import AuthShell from "@/components/auth/AuthShell";
 
 type Tab = "email" | "phone";
+
+const IC = {
+  mail: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 7-10 6L2 7" />
+    </svg>
+  ),
+  phone: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13 1 .35 1.9.66 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.31 1.81.53 2.81.66A2 2 0 0 1 22 16.92z" />
+    </svg>
+  ),
+  eye: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  eyeOff: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  ),
+  warn: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  ),
+  arrow: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  ),
+};
 
 export default function CustomerLoginPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("email");
 
-  // Email state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  // Phone state
+  const [showPw, setShowPw] = useState(false);
   const [phone, setPhone] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -56,116 +97,117 @@ export default function CustomerLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-            Welcome back
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">Sign in to Mapcars</p>
-        </div>
+    <AuthShell
+      headlineLead="Welcome back to"
+      headlineHighlight="MapCars"
+      tagline="Sign in to book rides, track your trips, and pick up right where you left off across the South Coast."
+    >
+      <h2 className="auth-title">Sign in</h2>
+      <p className="auth-sub">Good to see you again. Let&rsquo;s get you moving.</p>
 
-        {/* Tabs */}
-        <div className="mb-4 flex rounded-xl border border-zinc-200 bg-white p-1">
-          {(["email", "phone"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => { setTab(t); setError(null); }}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold capitalize transition-colors ${
-                tab === t
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-700"
-              }`}
-            >
-              {t === "email" ? "Email" : "Phone"}
-            </button>
-          ))}
-        </div>
-
-        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-          {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          {tab === "email" ? (
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  autoFocus
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@email.com"
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? "Signing in…" : "Sign in"}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handlePhoneLogin} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Mobile number
-                </label>
-                <div className="flex gap-2">
-                  <span className="flex items-center rounded-lg border border-zinc-200 px-3 text-sm text-zinc-500">
-                    🇬🇧 +44
-                  </span>
-                  <input
-                    type="tel"
-                    required
-                    autoFocus
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="7700 900000"
-                    className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? "Sending code…" : "Send code"}
-              </button>
-            </form>
-          )}
-        </div>
-
-        <p className="mt-4 text-center text-sm text-zinc-500">
-          New to Mapcars?{" "}
-          <Link href="/auth/signup" className="font-semibold text-blue-600 hover:text-blue-700">
-            Create account
-          </Link>
-        </p>
+      <div className="auth-tabs" role="tablist">
+        {(["email", "phone"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            className={`auth-tab${tab === t ? " active" : ""}`}
+            onClick={() => {
+              setTab(t);
+              setError(null);
+            }}
+          >
+            {t === "email" ? IC.mail : IC.phone}
+            {t === "email" ? "Email" : "Phone"}
+          </button>
+        ))}
       </div>
-    </div>
+
+      {error && (
+        <div className="auth-error" role="alert">
+          {IC.warn}
+          <span>{error}</span>
+        </div>
+      )}
+
+      {tab === "email" ? (
+        <form className="auth-form" onSubmit={handleEmailLogin}>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="email">Email address</label>
+            <div className="auth-input-wrap">
+              <input
+                id="email"
+                type="email"
+                required
+                autoFocus
+                autoComplete="email"
+                className="auth-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+              />
+            </div>
+          </div>
+          <div className="auth-field">
+            <div className="auth-row-between">
+              <label className="auth-label" htmlFor="password">Password</label>
+              <Link href="/#contact" className="auth-link">Forgot password?</Link>
+            </div>
+            <div className="auth-input-wrap">
+              <input
+                id="password"
+                type={showPw ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                className="auth-input has-toggle"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className="auth-pw-toggle"
+                aria-label={showPw ? "Hide password" : "Show password"}
+                onClick={() => setShowPw((v) => !v)}
+              >
+                {showPw ? IC.eyeOff : IC.eye}
+              </button>
+            </div>
+          </div>
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? <span className="auth-spinner" /> : <>Sign in {IC.arrow}</>}
+          </button>
+        </form>
+      ) : (
+        <form className="auth-form" onSubmit={handlePhoneLogin}>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="phone">Mobile number</label>
+            <div className="auth-phone">
+              <span className="auth-prefix">🇬🇧 +44</span>
+              <input
+                id="phone"
+                type="tel"
+                required
+                autoFocus
+                autoComplete="tel"
+                className="auth-input"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="7700 900000"
+              />
+            </div>
+          </div>
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? <span className="auth-spinner" /> : <>Send login code {IC.arrow}</>}
+          </button>
+          <p className="auth-hint">We&rsquo;ll text you a 6-digit code. Standard SMS rates apply.</p>
+        </form>
+      )}
+
+      <p className="auth-alt">
+        New to MapCars? <Link href="/auth/signup">Create an account</Link>
+      </p>
+    </AuthShell>
   );
 }

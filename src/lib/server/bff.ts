@@ -72,7 +72,11 @@ function upstreamError(reason: unknown): NextResponse {
 }
 
 /** If the upstream body carries a JWT, move it into an httpOnly cookie and strip it from the response. */
-function jsonWithToken(data: Record<string, unknown>, cookieName: string): NextResponse {
+function jsonWithToken(data: Record<string, unknown> | unknown[], cookieName: string): NextResponse {
+  // A JSON array body (e.g. list endpoints) never carries a token — pass it
+  // through as-is. Spreading it below would corrupt it into an object.
+  if (Array.isArray(data)) return NextResponse.json(data, { status: 200 });
+
   const { token, expiresInMinutes, ...rest } = data as {
     token?: string;
     expiresInMinutes?: number;

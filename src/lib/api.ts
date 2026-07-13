@@ -111,6 +111,40 @@ export interface OtpSentResponse {
   devCode?: string; // only present in local/dev environment
 }
 
+// ── Admin management (SuperAdmin) ────────────────────────────────────────────
+
+export interface AdminListItem {
+  id: string;
+  email: string;
+  fullName: string;
+  roleId: number;
+  role: string;
+  isActive: boolean;
+  menuCount: number;
+  createdAtUtc: string;
+}
+
+// One node of the catalog annotated for a given admin.
+export interface MenuAccessItem {
+  id: number;
+  name: string;
+  path?: string;
+  icon?: string;
+  parentId?: number;
+  sortOrder: number;
+  allowed: boolean; // effective access for this admin
+  roleDefault: boolean; // granted by the admin's role out of the box
+  children: MenuAccessItem[];
+}
+
+export interface AdminMenuAccess {
+  adminId: string;
+  email: string;
+  roleId: number;
+  role: string;
+  menus: MenuAccessItem[];
+}
+
 // Used by home page
 export type HealthResponse = { status: string; service: string };
 export type PingResponse = { message: string; utc: string };
@@ -150,6 +184,24 @@ export const adminAuth = {
   logout: () => bff<{ ok: boolean }>("POST", "/admin/logout"),
 };
 
+// ── Admin management  (BFF: /api/bff/admin/*) — SuperAdmin only ──────────────
+
+export const adminManagement = {
+  /** List all admins with their effective menu counts. */
+  listAdmins: () => bff<AdminListItem[]>("GET", "/admin/admins"),
+
+  /** Full menu catalog (tree). */
+  menuCatalog: () => bff<MenuResponse[]>("GET", "/admin/menus"),
+
+  /** One admin's menu access (catalog annotated allowed / roleDefault). */
+  getAdminMenus: (adminId: string) =>
+    bff<AdminMenuAccess>("GET", `/admin/admins/${adminId}/menus`),
+
+  /** Replace the complete set of menus an admin can see. */
+  setAdminMenus: (adminId: string, menuIds: number[]) =>
+    bff<AdminMenuAccess>("PUT", `/admin/admins/${adminId}/menus`, { menuIds }),
+};
+
 // ── Rider auth  (BFF: /api/bff/rider/*) ──────────────────────────────────────
 
 export const riderAuth = {
@@ -161,6 +213,9 @@ export const riderAuth = {
 
   signup: (email: string, password: string, fullName: string) =>
     bff<OtpSentResponse>("POST", "/rider/signup", { email, password, fullName }),
+
+  resendEmail: (email: string) =>
+    bff<OtpSentResponse>("POST", "/rider/resend-email", { email }),
 
   verifyEmail: (email: string, code: string) =>
     bff<RiderSession>("POST", "/rider/verify-email", { email, code }),
