@@ -1,0 +1,34 @@
+# Same intent as ../api/.dockerignore: keep secrets and local build artifacts out
+# of every image layer. A layer is permanent — anything copied in is recoverable
+# from the image even if a later stage deletes it.
+
+# Secrets — .env.local holds the real Mapbox/Google tokens and the local API URL.
+# All config reaches the image as build args (NEXT_PUBLIC_*) or run-time env vars
+# (API_INTERNAL_URL) instead. Excluding these also stops a stale .env.local from
+# shadowing the build args.
+.env
+.env.*
+
+# Dependencies and build output — reinstalled/rebuilt inside the image.
+node_modules
+.next
+out
+build
+
+# VCS + local tooling
+.git
+.gitignore
+.github
+.vscode
+*.tsbuildinfo
+next-env.d.ts
+
+# Docs and scratch files — not needed to build.
+*.md
+Dockerfile
+.dockerignore
+deploy
+
+# OS noise
+.DS_Store
+npm-debug.log*

@@ -2,14 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { env } from "@/lib/env";
 
 type Status = "checking" | "online" | "offline";
 
-/** Small floating pill showing the live API connection status. */
+/**
+ * Small floating pill showing the live API connection status.
+ *
+ * Development affordance only. mapcars.uk serves this landing page to the public,
+ * where a floating "API offline" badge is noise at best and alarming at worst — so
+ * it renders (and skips the ping entirely) outside local dev.
+ */
 export default function ApiStatus() {
   const [status, setStatus] = useState<Status>("checking");
 
   useEffect(() => {
+    if (!env.isDev) return;
     let cancelled = false;
     api
       .ping()
@@ -19,6 +27,8 @@ export default function ApiStatus() {
       cancelled = true;
     };
   }, []);
+
+  if (!env.isDev) return null;
 
   const dot =
     status === "online"

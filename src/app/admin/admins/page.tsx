@@ -1,50 +1,85 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  adminAuth,
   adminManagement,
   ApiError,
   type AdminListItem,
   type AdminMenuAccess,
   type MenuAccessItem,
 } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  Field,
+  Icon,
+  Input,
+  Page,
+  PageHeader,
+  Select,
+  Skeleton,
+  SlideOver,
+} from "@/components/ui";
+
+// The platform ships exactly two roles, seeded in `database/001_admin_auth.sql`
+// and structural to the permission model (a SuperAdmin can't be menu-restricted).
+// There's no roles endpoint; the client already hardcodes role 1 elsewhere
+// (`adminAuth.setup`), so keep that convention rather than inventing a contract.
+const ROLES = [
+  { id: 2, name: "Admin", blurb: "Menu-based access you control per account." },
+  { id: 1, name: "SuperAdmin", blurb: "Full access to every menu. Cannot be restricted." },
+];
 
 export default function AdminUsersPage() {
   const [admins, setAdmins] = useState<AdminListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminListItem | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     adminManagement
       .listAdmins()
-      .then(setAdmins)
-      .catch((e) =>
-        setError(e instanceof ApiError ? e.message : "Failed to load admins"),
-      );
+      .then((res) => {
+        setAdmins(res);
+        setError(null);
+      })
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load admins"));
   }, []);
 
-  function refreshCounts() {
-    adminManagement.listAdmins().then(setAdmins).catch(() => {});
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-900">Admin Users</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Manage admin accounts and control which menus each one can see.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Admin Users"
+        subtitle="Manage admin accounts and control which menus each one can see."
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <Icon name="user-plus" className="size-4" />
+            Add admin
+          </Button>
+        }
+      />
 
-      {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+      {error && <ErrorBanner message={error} onRetry={load} />}
+
+      {flash && (
+        <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-accent bg-accent-tint px-4 py-3">
+          <Icon name="check" className="size-4 shrink-0 text-accent-ink" />
+          <p className="text-sm font-medium text-accent-ink">{flash}</p>
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <Card padded={false} className="overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="border-b border-zinc-100 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <thead className="border-b border-line bg-slate-50/70 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
             <tr>
               <th className="px-5 py-3">Name</th>
               <th className="px-5 py-3">Email</th>
@@ -53,56 +88,63 @@ export default function AdminUsersPage() {
               <th className="px-5 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-line">
             {admins?.map((a) => (
-              <tr key={a.id} className="hover:bg-zinc-50">
-                <td className="px-5 py-3 font-medium text-zinc-900">
-                  {a.fullName}
+              <tr key={a.id} className="transition-colors hover:bg-slate-50/60">
+                <td className="px-5 py-3.5 font-medium text-ink">{a.fullName}</td>
+                <td className="px-5 py-3.5 text-ink-muted">{a.email}</td>
+                <td className="px-5 py-3.5">
+                  <Badge tone={a.roleId === 1 ? "brand" : "neutral"}>{a.role}</Badge>
                 </td>
-                <td className="px-5 py-3 text-zinc-600">{a.email}</td>
-                <td className="px-5 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      a.roleId === 1
-                        ? "bg-purple-50 text-purple-700"
-                        : "bg-blue-50 text-blue-700"
-                    }`}
-                  >
-                    {a.role}
-                  </span>
-                </td>
-                <td className="px-5 py-3 tabular-nums text-zinc-600">
-                  {a.menuCount}
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <button
+                <td className="px-5 py-3.5 tabular-nums text-ink-muted">{a.menuCount}</td>
+                <td className="px-5 py-3.5 text-right">
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     onClick={() => setSelected(a)}
                     disabled={a.roleId === 1}
-                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    title={a.roleId === 1 ? "SuperAdmin always has full access" : "Edit menus"}
+                    title={
+                      a.roleId === 1
+                        ? "SuperAdmin always has full access"
+                        : "Edit menu access"
+                    }
                   >
                     Edit menus
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
-            {admins && admins.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-zinc-400">
-                  No admins yet.
-                </td>
-              </tr>
-            )}
+
             {!admins && !error && (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-zinc-400">
-                  Loading…
+                <td colSpan={5} className="px-5 py-4">
+                  <Skeleton className="h-5 w-full" />
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+
+        {admins?.length === 0 && (
+          <EmptyState
+            icon="shield"
+            title="No admins yet"
+            description="Create the first admin account to get started."
+            action={<Button onClick={() => setCreating(true)}>Add admin</Button>}
+          />
+        )}
+      </Card>
+
+      {creating && (
+        <CreateAdminForm
+          onClose={() => setCreating(false)}
+          onCreated={(name) => {
+            setCreating(false);
+            setFlash(`${name} can now sign in. Remember to send them their password.`);
+            load();
+          }}
+        />
+      )}
 
       {selected && (
         <MenuEditor
@@ -110,15 +152,181 @@ export default function AdminUsersPage() {
           onClose={() => setSelected(null)}
           onSaved={() => {
             setSelected(null);
-            refreshCounts();
+            load();
           }}
         />
       )}
-    </div>
+    </Page>
   );
 }
 
-// ── Slide-over editor ──────────────────────────────────────────────────────
+// ── Create admin ─────────────────────────────────────────────────────────────
+
+/** Mirrors CreateAdminRequestValidator on the API so we fail fast, client-side. */
+const RULES = [
+  { label: "At least 8 characters", ok: (p: string) => p.length >= 8 },
+  { label: "One uppercase letter", ok: (p: string) => /[A-Z]/.test(p) },
+  { label: "One digit", ok: (p: string) => /[0-9]/.test(p) },
+];
+
+function CreateAdminForm({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (name: string) => void;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [roleId, setRoleId] = useState(2);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pwOk = RULES.every((r) => r.ok(password));
+  const canSubmit = fullName.trim() !== "" && email.trim() !== "" && pwOk && !saving;
+  const role = ROLES.find((r) => r.id === roleId)!;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await adminAuth.register(email.trim(), password, fullName.trim(), roleId);
+      onCreated(fullName.trim());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to create admin");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SlideOver
+      title="Add admin"
+      subtitle="Create a new admin account"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={submit} loading={saving} disabled={!canSubmit}>
+            Create admin
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={submit}>
+        {error && <ErrorBanner message={error} />}
+
+        <Field label="Full name" htmlFor="fullName">
+          <Input
+            id="fullName"
+            required
+            autoFocus
+            autoComplete="off"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Jane Smith"
+          />
+        </Field>
+
+        <Field
+          label="Email address"
+          htmlFor="newEmail"
+          hint="They'll sign in with this at /auth/login."
+        >
+          <Input
+            id="newEmail"
+            type="email"
+            required
+            autoComplete="off"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="jane@mapcars.co.uk"
+          />
+        </Field>
+
+        <Field
+          label="Temporary password"
+          htmlFor="newPassword"
+          hint={
+            <ul className="space-y-1">
+              {RULES.map((r) => {
+                const ok = r.ok(password);
+                return (
+                  <li
+                    key={r.label}
+                    className={`flex items-center gap-1.5 ${ok ? "text-accent-ink" : ""}`}
+                  >
+                    <Icon
+                      name={ok ? "check" : "close"}
+                      className={`size-3 ${ok ? "text-accent-ink" : "text-ink-faint"}`}
+                    />
+                    {r.label}
+                  </li>
+                );
+              })}
+            </ul>
+          }
+        >
+          <div className="relative">
+            <Input
+              id="newPassword"
+              type={showPw ? "text" : "password"}
+              required
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="pr-11"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              aria-label={showPw ? "Hide password" : "Show password"}
+              className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-slate-50 hover:text-ink-muted"
+            >
+              <Icon name={showPw ? "eye-off" : "eye"} className="size-4" />
+            </button>
+          </div>
+        </Field>
+
+        <Field label="Role" htmlFor="roleId" hint={role.blurb}>
+          <Select
+            id="roleId"
+            value={roleId}
+            onChange={(e) => setRoleId(Number(e.target.value))}
+          >
+            {ROLES.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        {/* RegisterAsync emails a welcome note, but deliberately never the
+            password — the creator has to pass it on out of band. */}
+        <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 px-3.5 py-3 ring-1 ring-amber-200">
+          <Icon name="alert-circle" className="mt-0.5 size-4 shrink-0 text-amber-700" />
+          <p className="text-xs text-amber-800">
+            They&rsquo;ll get a welcome email, but{" "}
+            <strong className="font-semibold">it won&rsquo;t include the password</strong> —
+            share it with them yourself and ask them to change it after signing in.
+          </p>
+        </div>
+
+        {/* Lets Enter submit the form without a visible duplicate button. */}
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </SlideOver>
+  );
+}
+
+// ── Menu access editor ───────────────────────────────────────────────────────
 
 function MenuEditor({
   admin,
@@ -141,9 +349,7 @@ function MenuEditor({
         setAccess(res);
         setChecked(collectAllowed(res.menus));
       })
-      .catch((e) =>
-        setError(e instanceof ApiError ? e.message : "Failed to load menus"),
-      );
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load menus"));
   }, [admin.id]);
 
   // Parent → children and child → parent maps, for cascading toggles.
@@ -188,55 +394,33 @@ function MenuEditor({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div
-        className="flex h-full w-full max-w-md flex-col bg-white shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="border-b border-zinc-100 px-6 py-4">
-          <h2 className="text-lg font-bold text-zinc-900">Menu access</h2>
-          <p className="text-sm text-zinc-500">
-            {admin.fullName} · {admin.email}
-          </p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          {!access && !error && (
-            <p className="text-sm text-zinc-400">Loading…</p>
-          )}
-          {access?.menus.map((m) => (
-            <MenuNode
-              key={m.id}
-              node={m}
-              checked={checked}
-              onToggle={toggle}
-              depth={0}
-            />
+    <SlideOver
+      title="Menu access"
+      subtitle={`${admin.fullName} · ${admin.email}`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={save} loading={saving} disabled={!access}>
+            Save changes
+          </Button>
+        </>
+      }
+    >
+      {error && <ErrorBanner message={error} />}
+      {!access && !error && (
+        <div className="space-y-2">
+          {Array.from({ length: 8 }, (_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
           ))}
         </div>
-
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-6 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={save}
-            disabled={saving || !access}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save changes"}
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+      {access?.menus.map((m) => (
+        <MenuNode key={m.id} node={m} checked={checked} onToggle={toggle} depth={0} />
+      ))}
+    </SlideOver>
   );
 }
 
@@ -253,16 +437,16 @@ function MenuNode({
 }) {
   return (
     <div style={{ paddingLeft: depth * 16 }}>
-      <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50">
+      <label className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-slate-50">
         <input
           type="checkbox"
           checked={checked.has(node.id)}
           onChange={(e) => onToggle(node.id, e.target.checked)}
-          className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+          className="size-4 rounded border-line-strong text-brand-ink focus:ring-brand/30"
         />
-        <span className="text-sm text-zinc-800">{node.name}</span>
+        <span className="text-sm text-ink">{node.name}</span>
         {node.roleDefault && (
-          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-ink-faint">
             role default
           </span>
         )}

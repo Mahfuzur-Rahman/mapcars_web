@@ -6,6 +6,7 @@
 // it. Public, unauthenticated calls (health/ping) hit the .NET API directly.
 
 import { env } from "./env";
+import { hideTopProgress, showTopProgress } from "@/components/ui/TopProgressBar";
 
 // ── Error type ───────────────────────────────────────────────────────────────
 
@@ -24,36 +25,43 @@ export class ApiError extends Error {
 const TIMEOUT_MS = 15_000;
 
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
-  let res: Response;
+  const isBrowser = typeof window !== "undefined";
+  if (isBrowser) showTopProgress();
+
   try {
-    res = await fetch(url, {
-      method,
-      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      cache: "no-store",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "TimeoutError") {
-      throw new ApiError(0, "Request timed out. Please try again.");
-    }
-    throw new ApiError(0, "Network error. Please check your connection.");
-  }
-
-  if (!res.ok) {
-    let message = `HTTP ${res.status}`;
+    let res: Response;
     try {
-      const err = (await res.json()) as Record<string, string>;
-      message = err.detail ?? err.message ?? err.title ?? message;
-    } catch {
-      /* not JSON */
+      res = await fetch(url, {
+        method,
+        headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        cache: "no-store",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        throw new ApiError(0, "Request timed out. Please try again.");
+      }
+      throw new ApiError(0, "Network error. Please check your connection.");
     }
-    throw new ApiError(res.status, message);
-  }
 
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try {
+        const err = (await res.json()) as Record<string, string>;
+        message = err.detail ?? err.message ?? err.title ?? message;
+      } catch {
+        /* not JSON */
+      }
+      throw new ApiError(res.status, message);
+    }
+
+    if (res.status === 204) return undefined as T;
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  } finally {
+    if (isBrowser) hideTopProgress();
+  }
 }
 
 // Same-origin BFF call — the session cookie rides along automatically.
@@ -106,9 +114,38 @@ export interface RiderSession {
   isPhoneVerified: boolean;
 }
 
+// Returned by driver login (token stripped → cookie).
+export interface DriverSession {
+  expiresInMinutes: number;
+  userType: string;
+  userId: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  isProfileComplete: boolean;
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
+}
+
 export interface OtpSentResponse {
   message: string;
   devCode?: string; // only present in local/dev environment
+}
+
+// Returned by the unified login (token stripped → cookie set based on role).
+// Only the fields for the matched `userType` are populated.
+export interface UnifiedSession {
+  expiresInMinutes: number;
+  userType: "admin" | "rider" | "driver";
+  userId?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  isProfileComplete?: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  admin?: AdminResponse;
+  menus?: MenuResponse[];
 }
 
 // ── Admin management (SuperAdmin) ────────────────────────────────────────────
@@ -149,6 +186,15 @@ export interface AdminMenuAccess {
 export type HealthResponse = { status: string; service: string };
 export type PingResponse = { message: string; utc: string };
 
+// ── Unified auth  (BFF: /api/bff/auth/login) ─────────────────────────────────
+// The web app's one sign-in surface — detects Admin/Rider/Driver from the
+// submitted credentials. See `web/src/app/auth/login/page.tsx`.
+
+export const unifiedAuth = {
+  login: (email: string, password: string) =>
+    bff<UnifiedSession>("POST", "/auth/login", { email, password }),
+};
+
 // ── Admin auth  (BFF: /api/bff/admin/*) ──────────────────────────────────────
 
 export const adminAuth = {
@@ -160,9 +206,6 @@ export const adminAuth = {
       fullName,
       roleId: 1,
     }),
-
-  login: (email: string, password: string) =>
-    bff<AdminSession>("POST", "/admin/login", { email, password }),
 
   /** Current admin profile + menu tree (also refreshes the session cookie). */
   me: () => bff<AdminSession>("GET", "/admin/me"),
@@ -202,6 +245,77 @@ export const adminManagement = {
     bff<AdminMenuAccess>("PUT", `/admin/admins/${adminId}/menus`, { menuIds }),
 };
 
+// ── Fare chart  (BFF: /api/bff/admin/fare-chart) — SuperAdmin edits ──────────
+// Mirrors Mapcars.Application.Pricing.Models.FareChart. All money is integer
+// pence; multipliers/percent are decimals. Publishing bumps the version and
+// takes effect immediately (the API updates its in-memory cache on write).
+
+export interface FareTier {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  baseFarePence: number;
+  multiplier: number;
+  capacity: number;
+  etaMinutes: number;
+}
+
+export interface RushHourRule {
+  days: number[]; // ISO weekdays 1=Mon … 7=Sun; empty = every day
+  from: string; // "HH:mm" (local); windows may wrap past midnight
+  to: string;
+  multiplier: number;
+}
+
+export interface ZoneSurcharge {
+  id: string;
+  type: string; // e.g. "airport" | "station"
+  lat: number;
+  lng: number;
+  radiusM: number;
+  surchargePence: number;
+  appliesToPickup: boolean;
+  appliesToDropoff: boolean;
+}
+
+export interface BusyArea {
+  lat: number;
+  lng: number;
+  radiusM: number;
+  multiplier: number;
+}
+
+export interface OutsideCityRule {
+  cityLat: number;
+  cityLng: number;
+  radiusM: number;
+  multiplier: number;
+}
+
+export interface FareChart {
+  version: number;
+  currency: string;
+  updatedAtUtc: string;
+  base: { bookingFeePence: number; minimumFarePence: number };
+  rates: { perMilePence: number; perMinutePence: number };
+  tiers: FareTier[];
+  modifiers: {
+    rushHour: RushHourRule[];
+    zones: ZoneSurcharge[];
+    busyAreas: BusyArea[];
+    outsideCity: OutsideCityRule | null;
+  };
+  platform: { driverFeePercent: number };
+}
+
+export const fareChart = {
+  /** The current live fare chart. */
+  get: () => bff<FareChart>("GET", "/admin/fare-chart"),
+  /** Publish a new version (SuperAdmin only). Returns it with its new version. */
+  update: (chart: FareChart) => bff<FareChart>("PUT", "/admin/fare-chart", chart),
+};
+
 // ── Rider auth  (BFF: /api/bff/rider/*) ──────────────────────────────────────
 
 export const riderAuth = {
@@ -220,19 +334,550 @@ export const riderAuth = {
   verifyEmail: (email: string, code: string) =>
     bff<RiderSession>("POST", "/rider/verify-email", { email, code }),
 
-  login: (email: string, password: string) =>
-    bff<RiderSession>("POST", "/rider/login", { email, password }),
-
   google: (idToken: string) =>
     bff<RiderSession>("POST", "/rider/google", { idToken }),
 
-  updateProfile: (fullName: string, email?: string) =>
-    bff<RiderSession>("PATCH", "/rider/me", {
+  /** Current rider's profile (Wave 1 profile/compliance fields). */
+  getProfile: () => bff<RiderProfileResponse>("GET", "/rider/me"),
+
+  updateProfile: (
+    fullName: string,
+    opts?: {
+      email?: string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
+      marketingConsent?: boolean;
+      accessibilityNeeds?: string;
+    },
+  ) =>
+    bff<RiderProfileResponse>("PATCH", "/rider/me", {
       fullName,
-      ...(email ? { email } : {}),
+      ...(opts?.email ? { email: opts.email } : {}),
+      ...(opts?.emergencyContactName
+        ? { emergencyContactName: opts.emergencyContactName }
+        : {}),
+      ...(opts?.emergencyContactPhone
+        ? { emergencyContactPhone: opts.emergencyContactPhone }
+        : {}),
+      ...(opts?.marketingConsent !== undefined
+        ? { marketingConsent: opts.marketingConsent }
+        : {}),
+      ...(opts?.accessibilityNeeds ? { accessibilityNeeds: opts.accessibilityNeeds } : {}),
     }),
 
   logout: () => bff<{ ok: boolean }>("POST", "/rider/logout"),
+};
+
+// Returned by GET/PATCH /api/v1/auth/riders/me. PATCH used to return the
+// shared RiderSession — it now returns this shape instead (breaking change,
+// intentional — see Wave 1 profile/compliance-fields project).
+export interface RiderProfileResponse {
+  riderId: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  marketingConsent: boolean;
+  accessibilityNeeds?: string;
+  isProfileComplete: boolean;
+}
+
+// ── Rider trips  (BFF: /api/bff/rider/trips) ─────────────────────────────────
+
+export interface TripSummary {
+  id: string;
+  pickupAddress: string;
+  pickupLat: number;
+  pickupLng: number;
+  dropoffAddress: string;
+  dropoffLat: number;
+  dropoffLng: number;
+  status: string;
+  fareAmount?: number;
+  tipAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  paidAtUtc: string | null;
+  createdAtUtc: string;
+  completedAtUtc: string | null;
+  cancelledAtUtc: string | null;
+  cancelledReason: string | null;
+  isNoShow: boolean;
+}
+
+export const riderTrips = {
+  /** The current rider's own trip history. */
+  list: () => bff<TripSummary[]>("GET", "/rider/trips"),
+};
+
+// ── Saved places  (BFF: /api/bff/saved-places) — rider only ──────────────────
+
+export interface SavedPlaceResponse {
+  id: string;
+  label: string;
+  address: string;
+  lat: number;
+  lng: number;
+  createdAtUtc: string;
+  updatedAtUtc?: string;
+}
+
+export interface UpsertSavedPlaceRequest {
+  label: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+export const savedPlaces = {
+  list: () => bff<SavedPlaceResponse[]>("GET", "/saved-places"),
+
+  create: (place: UpsertSavedPlaceRequest) =>
+    bff<SavedPlaceResponse>("POST", "/saved-places", place),
+
+  update: (id: string, place: UpsertSavedPlaceRequest) =>
+    bff<SavedPlaceResponse>("PUT", `/saved-places/${id}`, place),
+
+  remove: (id: string) => bff<void>("DELETE", `/saved-places/${id}`),
+};
+
+// ── Driver auth  (BFF: /api/bff/driver/*) ────────────────────────────────────
+// Driver accounts are created via the driver_app mobile onboarding flow, not
+// the web — so only login/logout are exposed here (no signup/OTP).
+
+export const driverAuth = {
+  /** Current driver's full profile (also used for the web dashboard). */
+  getProfile: () => bff<DriverProfileResponse>("GET", "/driver/me"),
+
+  updateProfile: (req: UpdateDriverProfileRequest) =>
+    bff<DriverProfileResponse>("PATCH", "/driver/me", req),
+
+  logout: () => bff<{ ok: boolean }>("POST", "/driver/logout"),
+};
+
+// Returned by GET /api/v1/auth/drivers/me.
+export interface DriverProfileResponse {
+  driverId: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  address?: string;
+  nationalIdNumber?: string;
+  drivingLicenceNumber?: string;
+  passportNumber?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  marketingConsent: boolean;
+  status: string; // "PendingApproval" | "Approved" | "Suspended" | "Rejected"
+  isOnline: boolean;
+  isProfileComplete: boolean;
+  averageRating: number | null;
+  ratingCount: number;
+  cancellationCount: number;
+  noShowCount: number;
+  createdAtUtc: string;
+}
+
+// Body for PATCH /api/v1/auth/drivers/me — firstName/nationalIdNumber required.
+export interface UpdateDriverProfileRequest {
+  firstName: string;
+  lastName?: string;
+  email?: string;
+  dateOfBirth?: string; // "YYYY-MM-DD"
+  address?: string;
+  nationalIdNumber: string;
+  drivingLicenceNumber?: string;
+  passportNumber?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  marketingConsent?: boolean;
+}
+
+// ── Driver trips  (BFF: /api/bff/driver/trips) ───────────────────────────────
+
+export interface DriverTripSummary {
+  id: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  status: string;
+  fareAmount?: number;
+  tipAmount: number;
+  driverEarnings?: number;
+  createdAtUtc: string;
+  completedAtUtc: string | null;
+}
+
+export const driverTrips = {
+  /** The current driver's own trip history. */
+  list: () => bff<DriverTripSummary[]>("GET", "/driver/trips"),
+};
+
+// ── Documents  (BFF: /api/bff/{rider,driver}/documents) ──────────────────────
+// Rider document types: identity/address proof. Driver document types: PHV
+// licence/vehicle docs. The API rejects a type that doesn't match the caller's
+// role — see Mapcars.Application.Documents.Services.DocumentService.
+
+export type RiderDocumentType = "ProofOfIdentity" | "ProofOfAddress";
+export type DriverDocumentType =
+  | "PhvLicence"
+  | "VehicleInsurance"
+  | "VehicleRegistration"
+  | "DbsCheck"
+  | "VehicleFrontPhoto"
+  | "VehicleRearPhoto"
+  | "VehicleInteriorPhoto"
+  | "Passport"
+  | "DrivingLicence"
+  | "VehicleBadge"
+  | "BankStatement"
+  | "ProofOfAddress";
+
+export interface DocumentSummary {
+  id: string;
+  type: string;
+  originalFileName: string;
+  reviewStatus: string;
+  createdAtUtc: string;
+  reviewedAtUtc?: string;
+  // Required by the API for expiring types (PhvLicence, VehicleInsurance,
+  // VehicleRegistration, DbsCheck); absent for the rest.
+  expiresOn?: string;
+}
+
+async function uploadDocument(
+  basePath: "/rider/documents" | "/driver/documents",
+  type: string,
+  file: File,
+  expiresOn?: string,
+): Promise<DocumentSummary> {
+  const formData = new FormData();
+  formData.append("type", type);
+  formData.append("file", file);
+  if (expiresOn) formData.append("expiresOn", expiresOn);
+
+  const res = await fetch(`/api/bff${basePath}`, {
+    method: "POST",
+    body: formData,
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as Record<string, string>;
+    throw new ApiError(res.status, err.detail ?? err.message ?? err.title ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<DocumentSummary>;
+}
+
+export const riderDocuments = {
+  upload: (type: RiderDocumentType, file: File, expiresOn?: string) =>
+    uploadDocument("/rider/documents", type, file, expiresOn),
+  list: () => bff<DocumentSummary[]>("GET", "/rider/documents"),
+};
+
+export const driverDocuments = {
+  upload: (type: DriverDocumentType, file: File, expiresOn?: string) =>
+    uploadDocument("/driver/documents", type, file, expiresOn),
+  list: () => bff<DocumentSummary[]>("GET", "/driver/documents"),
+};
+
+// ── Driver payouts  (BFF: /api/bff/driver/{payout-account,payouts}) ──────────
+
+export interface PayoutAccountStatus {
+  status: string; // "NotStarted" | "OnboardingIncomplete" | "Complete" | "Restricted"
+  payoutsEnabled: boolean;
+  chargesEnabled: boolean;
+}
+
+export interface PayoutSummary {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAtUtc: string;
+  arrivedAtUtc?: string;
+}
+
+export const driverPayouts = {
+  getAccountStatus: () => bff<PayoutAccountStatus>("GET", "/driver/payout-account"),
+
+  /** Kicks off (or resumes) Stripe Connect onboarding; returns a URL to redirect the driver to. */
+  startOnboarding: (refreshUrl: string, returnUrl: string) =>
+    bff<{ url: string }>("POST", "/driver/payout-account/onboarding-link", {
+      refreshUrl,
+      returnUrl,
+    }),
+
+  listPayouts: () => bff<PayoutSummary[]>("GET", "/driver/payouts"),
+};
+
+// ── Admin driver review  (BFF: /api/bff/admin/driver-review/*) ───────────────
+// SuperAdmin or Admin. Review a driver's uploaded KYC/vehicle documents, view
+// each file (streamed, never a public URL), approve/reject them, and set the
+// driver's overall status.
+
+export type DriverStatus = "PendingApproval" | "Approved" | "Suspended" | "Rejected";
+export type DocumentReviewStatus = "Pending" | "Approved" | "Rejected";
+
+export interface DriverReviewListItem {
+  driverId: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+  status: DriverStatus;
+  documentCount: number;
+  pendingDocumentCount: number;
+  expiredDocumentCount: number;
+  createdAtUtc: string;
+}
+
+export interface VehicleResponse {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  colour: string;
+  registrationNumber: string;
+  phvLicencePlateNumber?: string;
+  phvLicensingAuthority?: string;
+  createdAtUtc: string;
+  updatedAtUtc?: string;
+}
+
+export interface DriverReviewDetail {
+  driverId: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+  address?: string;
+  nationalIdNumber?: string;
+  phvLicenceNumber?: string;
+  drivingLicenceNumber?: string;
+  passportNumber?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  marketingConsent: boolean;
+  status: DriverStatus;
+  hasProfilePicture: boolean;
+  vehicle?: VehicleResponse;
+  documents: DocumentSummary[];
+  averageRating: number | null;
+  ratingCount: number;
+  cancellationCount: number;
+  noShowCount: number;
+  isOnline: boolean;
+}
+
+export const adminDriverReview = {
+  listDrivers: (status?: DriverStatus) =>
+    bff<DriverReviewListItem[]>(
+      "GET",
+      `/admin/driver-review/drivers${status ? `?status=${status}` : ""}`,
+    ),
+
+  getDriver: (driverId: string) =>
+    bff<DriverReviewDetail>("GET", `/admin/driver-review/drivers/${driverId}`),
+
+  reviewDocument: (documentId: string, status: "Approved" | "Rejected") =>
+    bff<DocumentSummary>(
+      "PUT",
+      `/admin/driver-review/documents/${documentId}/review`,
+      { status },
+    ),
+
+  setDriverStatus: (driverId: string, status: DriverStatus) =>
+    bff<DriverReviewDetail>(
+      "PUT",
+      `/admin/driver-review/drivers/${driverId}/status`,
+      { status },
+    ),
+
+  /** Same-origin URL that streams a document's bytes (use as <img src> / <iframe src>). */
+  documentContentUrl: (documentId: string) =>
+    `/api/bff/admin/driver-review/documents/${documentId}/content`,
+};
+
+// ── Admin riders  (BFF: /api/bff/admin/riders) — SuperAdmin or Admin ─────────
+
+export interface AdminRiderListItem {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export const adminRiders = {
+  list: () => bff<AdminRiderListItem[]>("GET", "/admin/riders"),
+  get: (id: string) => bff<AdminRiderListItem>("GET", `/admin/riders/${id}`),
+};
+
+// ── Admin reporting  (BFF: /api/bff/admin/{stats,trips,live}) ────────────────
+// Read-only dashboard/trip-history/live-map data. SuperAdmin or Admin.
+
+export interface AdminStats {
+  totalRiders: number;
+  totalDrivers: number;
+  onlineDrivers: number;
+  pendingDriverApprovals: number;
+  activeTrips: number;
+  tripsToday: number;
+  completedTripsToday: number;
+  revenueTodayGbp: number;
+}
+
+export type TripStatusName =
+  | "Requested"
+  | "DriverAssigned"
+  | "DriverArrived"
+  | "InProgress"
+  | "Completed"
+  | "CancelledByRider"
+  | "CancelledByDriver";
+
+export interface AdminTripListItem {
+  id: string;
+  riderName?: string;
+  driverName?: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  status: TripStatusName;
+  tier?: string;
+  fareAmount?: number;
+  tipAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  createdAtUtc: string;
+  completedAtUtc?: string;
+  cancelledAtUtc?: string;
+}
+
+export interface AdminActiveTrip {
+  id: string;
+  status: TripStatusName;
+  riderName?: string;
+  driverName?: string;
+  pickupAddress: string;
+  pickupLat: number;
+  pickupLng: number;
+  dropoffAddress: string;
+  dropoffLat: number;
+  dropoffLng: number;
+}
+
+export interface AdminOnlineDriver {
+  driverId: string;
+  name?: string;
+  lat: number;
+  lng: number;
+  heading?: number;
+}
+
+export interface AdminLive {
+  activeTrips: AdminActiveTrip[];
+  onlineDrivers: AdminOnlineDriver[];
+}
+
+export const adminReports = {
+  /** Dashboard headline counts. */
+  stats: () => bff<AdminStats>("GET", "/admin/stats"),
+
+  /** Trip history, most recent first. */
+  listTrips: (opts?: { status?: TripStatusName; skip?: number; take?: number }) => {
+    const p = new URLSearchParams();
+    if (opts?.status) p.set("status", opts.status);
+    if (opts?.skip != null) p.set("skip", String(opts.skip));
+    if (opts?.take != null) p.set("take", String(opts.take));
+    const q = p.toString();
+    return bff<AdminTripListItem[]>("GET", `/admin/trips${q ? `?${q}` : ""}`);
+  },
+
+  /** Live map: in-flight trips + online drivers. */
+  live: () => bff<AdminLive>("GET", "/admin/live"),
+};
+
+// ── Posters  (BFF: /api/bff/admin/posters) — SuperAdmin or Admin ────────────
+// Landing-page promo banners. Admin CRUD goes through the BFF; the image and
+// the active-poster list are public/unauthenticated on the API, so the
+// landing page (and the admin thumbnail preview) hits the API directly.
+
+export interface PosterResponse {
+  id: string;
+  title?: string;
+  subtitle?: string;
+  linkUrl?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface UpsertPosterFields {
+  title?: string;
+  subtitle?: string;
+  linkUrl?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+/** Same-origin URL that streams a poster's image (public via BFF proxy). */
+export const posterImageUrl = (id: string) => `/api/bff/posters/${id}/image`;
+
+async function uploadPoster(
+  basePath: string,
+  file: File,
+  fields: UpsertPosterFields,
+): Promise<PosterResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (fields.title) formData.append("Title", fields.title);
+  if (fields.subtitle) formData.append("Subtitle", fields.subtitle);
+  if (fields.linkUrl) formData.append("LinkUrl", fields.linkUrl);
+  formData.append("SortOrder", String(fields.sortOrder));
+  formData.append("IsActive", String(fields.isActive));
+
+  const res = await fetch(`/api/bff${basePath}`, { method: "POST", body: formData, cache: "no-store" });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as Record<string, string>;
+    throw new ApiError(res.status, err.detail ?? err.message ?? err.title ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<PosterResponse>;
+}
+
+async function uploadPosterImage(basePath: string, file: File): Promise<PosterResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`/api/bff${basePath}`, { method: "POST", body: formData, cache: "no-store" });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as Record<string, string>;
+    throw new ApiError(res.status, err.detail ?? err.message ?? err.title ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<PosterResponse>;
+}
+
+export const posters = {
+  /** Public — active posters, ordered for display. Feeds the landing page via BFF proxy. */
+  listActive: () => bff<PosterResponse[]>("GET", "/posters/active"),
+};
+
+export const adminPosters = {
+  /** Admin — every poster (active or not), ordered. */
+  list: () => bff<PosterResponse[]>("GET", "/admin/posters"),
+
+  create: (file: File, fields: UpsertPosterFields) =>
+    uploadPoster("/admin/posters", file, fields),
+
+  update: (id: string, fields: UpsertPosterFields) =>
+    bff<PosterResponse>("PUT", `/admin/posters/${id}`, fields),
+
+  /** Replaces the image only — the API endpoint takes just the file, no metadata fields. */
+  replaceImage: (id: string, file: File) => uploadPosterImage(`/admin/posters/${id}/image`, file),
+
+  remove: (id: string) => bff<void>("DELETE", `/admin/posters/${id}`),
 };
 
 // ── Health / ping (used by home page) ────────────────────────────────────────

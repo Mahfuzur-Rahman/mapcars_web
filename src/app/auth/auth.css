@@ -6,9 +6,10 @@
 
 .auth-wrap {
   --brand: #00b9d9;
-  --brand-dark: #0099b8;
-  --accent: #4dc842;
-  --grad: linear-gradient(135deg, #00b9d9 0%, #4dc842 100%);
+  --brand-deep: #0b7dc0;
+  --brand-dark: #085e94;
+  --accent: #22c55e;
+  --grad: linear-gradient(135deg, #00b9d9 0%, #0b7dc0 55%, #22c55e 100%);
   --ink: #0f172a;
   --body: #475569;
   --muted: #94a3b8;

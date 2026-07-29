@@ -1,36 +1,81 @@
 @import "tailwindcss";
 
-/* MapCars design system — brand tokens shared by every page.
-   The landing sections use the richer component styles in landing.css;
-   these tokens expose the same palette to Tailwind utilities
-   (e.g. bg-brand, text-accent, font-display). */
+/* MapCars design system.
+   ────────────────────────────────────────────────────────────────────────────
+   Tailwind utilities come from the `@theme` block below, which declares its
+   colours as *literal values*. Don't rewrite these as `@theme inline { --color-x:
+   var(--x) }` pointing at a plain `:root` — that indirection silently fails to
+   generate the utility (the class ends up with no declaration at all), and the
+   unreferenced `:root` var gets pruned from the build.
+
+   The hand-written stylesheets (landing.css, site.css, auth.css) predate this
+   and consume raw `var(--brand)`-style names, so those aliases live on in
+   `:root` below. Note auth.css scopes its own `--ink`/`--line` to `.auth-wrap`;
+   the Tailwind tokens here are `--color-ink`/`--color-line`, so they can't
+   collide. */
+
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+
+  /* Brand fills — vivid Cyan & Royal Teal harmonized with Mobile apps. */
+  --color-brand: #00b9d9;
+  --color-brand-deep: #0b7dc0;
+  --color-brand-dark: #085e94;
+  --color-accent: #22c55e;
+  --color-accent-vivid: #4dc842;
+  --color-accent-light: #7de86c;
+
+  /* High-contrast readable counterparts — for text and readable tags. */
+  --color-brand-ink: #065f73; /* ~5.8:1 on white */
+  --color-brand-tint: #eefbfe; /* active nav row, icon chip background */
+  --color-accent-ink: #15803d; /* ~5.2:1 — success text */
+  --color-accent-tint: #f0fdf4;
+
+  /* App chrome for the signed-in portals (admin, driver, account). */
+  --color-app-bg: #f4f7f9; /* sunken page background behind cards */
+  --color-surface: #ffffff; /* cards, sidebar */
+  --color-line: #e2e8f0; /* hairline borders */
+  --color-line-strong: #cbd5e1;
+  --color-ink: #0f172a; /* primary text ~16:1 */
+  --color-ink-muted: #475569; /* labels, secondary ~6.8:1 */
+  --color-ink-faint: #64748b; /* smallest hints ~4.6:1 (AA floor) */
+}
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-outfit);
+  --font-mono: var(--font-geist-mono);
+}
+
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
 
+  /* Legacy & global design system tokens */
   --brand: #00b9d9;
-  --brand-dark: #0099b8;
-  --accent: #4dc842;
+  --brand-deep: #0b7dc0;
+  --brand-dark: #085e94;
+  --accent: #22c55e;
   --accent-light: #7de86c;
-  --gradient-brand: linear-gradient(135deg, #00b9d9 0%, #4dc842 100%);
-}
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-brand: var(--brand);
-  --color-brand-dark: var(--brand-dark);
-  --color-accent: var(--accent);
-  --color-accent-light: var(--accent-light);
-  --font-sans: var(--font-inter);
-  --font-display: var(--font-outfit);
-  --font-mono: var(--font-geist-mono);
+  /* Multi-tone premium gradients */
+  --gradient-brand: linear-gradient(135deg, #00b9d9 0%, #0b7dc0 55%, #22c55e 100%);
+  --gradient-brand-subtle: linear-gradient(135deg, rgba(0, 185, 217, 0.08) 0%, rgba(11, 125, 192, 0.05) 50%, rgba(34, 197, 94, 0.08) 100%);
+  --gradient-hero-glow: radial-gradient(circle at 50% 0%, rgba(0, 185, 217, 0.14) 0%, rgba(11, 125, 192, 0.06) 45%, transparent 80%);
+
+  /* Multi-layered shadow depth tokens */
+  --shadow-card: 0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 4px 16px -4px rgba(0, 185, 217, 0.08);
+  --shadow-raised: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(0, 185, 217, 0.12);
+  --shadow-glow-brand: 0 8px 24px -4px rgba(0, 185, 217, 0.35);
+  --shadow-glow-accent: 0 8px 24px -4px rgba(34, 197, 94, 0.35);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
@@ -40,4 +85,30 @@ h4,
 h5,
 h6 {
   font-family: var(--font-outfit), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Common UI design system helper classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 185, 217, 0.15);
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.06);
+}
+
+.text-gradient-brand {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.btn-glow-primary {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-glow-primary:hover {
+  box-shadow: var(--shadow-glow-brand);
+  transform: translateY(-1px);
 }

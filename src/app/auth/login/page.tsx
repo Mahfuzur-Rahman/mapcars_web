@@ -5,7 +5,7 @@ import "../auth.css";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { riderAuth, ApiError } from "@/lib/api";
+import { riderAuth, unifiedAuth, ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { normalizeUkPhone } from "@/lib/phone";
 import AuthShell from "@/components/auth/AuthShell";
@@ -52,7 +52,7 @@ const IC = {
   ),
 };
 
-export default function CustomerLoginPage() {
+export default function LoginPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("email");
 
@@ -69,8 +69,17 @@ export default function CustomerLoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await riderAuth.login(email, password);
-      router.push(res.isProfileComplete ? "/" : "/auth/profile");
+      const res = await unifiedAuth.login(email, password);
+      switch (res.userType) {
+        case "admin":
+          router.push("/admin");
+          break;
+        case "driver":
+          router.push("/driver");
+          break;
+        default:
+          router.push(res.isProfileComplete ? "/account" : "/auth/profile");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login failed");
@@ -100,7 +109,7 @@ export default function CustomerLoginPage() {
     <AuthShell
       headlineLead="Welcome back to"
       headlineHighlight="MapCars"
-      tagline="Sign in to book rides, track your trips, and pick up right where you left off across the South Coast."
+      tagline="One sign-in for riders, drivers, and admins — we'll take you straight to your dashboard."
     >
       <h2 className="auth-title">Sign in</h2>
       <p className="auth-sub">Good to see you again. Let&rsquo;s get you moving.</p>
@@ -201,12 +210,19 @@ export default function CustomerLoginPage() {
           <button type="submit" className="auth-btn" disabled={loading}>
             {loading ? <span className="auth-spinner" /> : <>Send login code {IC.arrow}</>}
           </button>
-          <p className="auth-hint">We&rsquo;ll text you a 6-digit code. Standard SMS rates apply.</p>
+          <p className="auth-hint">
+            We&rsquo;ll text you a 6-digit code. Standard SMS rates apply. Phone
+            sign-in is for rider accounts — drivers and admins should use the
+            Email tab.
+          </p>
         </form>
       )}
 
       <p className="auth-alt">
-        New to MapCars? <Link href="/auth/signup">Create an account</Link>
+        New to MapCars? <Link href="/auth/signup">Create a rider account</Link>
+      </p>
+      <p className="auth-hint">
+        Driver? New accounts are created in the MapCars Driver app.
       </p>
     </AuthShell>
   );

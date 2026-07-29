@@ -8,6 +8,10 @@ export default function ProfileSetupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [accessibilityNeeds, setAccessibilityNeeds] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +23,13 @@ export default function ProfileSetupPage() {
     setLoading(true);
     setError(null);
     try {
-      await riderAuth.updateProfile(fullName.trim(), email.trim() || undefined);
+      await riderAuth.updateProfile(fullName.trim(), {
+        email: email.trim() || undefined,
+        emergencyContactName: emergencyContactName.trim() || undefined,
+        emergencyContactPhone: emergencyContactPhone.trim() || undefined,
+        marketingConsent,
+        accessibilityNeeds: accessibilityNeeds.trim() || undefined,
+      });
       router.push("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save profile");
@@ -80,6 +90,64 @@ export default function ProfileSetupPage() {
               className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">
+              Emergency contact name{" "}
+              <span className="text-xs font-normal text-zinc-400">
+                (optional)
+              </span>
+            </label>
+            <input
+              type="text"
+              value={emergencyContactName}
+              onChange={(e) => setEmergencyContactName(e.target.value)}
+              placeholder="Jane Morgan"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">
+              Emergency contact phone{" "}
+              <span className="text-xs font-normal text-zinc-400">
+                (optional)
+              </span>
+            </label>
+            <input
+              type="tel"
+              value={emergencyContactPhone}
+              onChange={(e) => setEmergencyContactPhone(e.target.value)}
+              placeholder="07123 456789"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">
+              Accessibility needs{" "}
+              <span className="text-xs font-normal text-zinc-400">
+                (optional)
+              </span>
+            </label>
+            <textarea
+              value={accessibilityNeeds}
+              onChange={(e) => setAccessibilityNeeds(e.target.value)}
+              placeholder="e.g. wheelchair access, assistance getting in/out"
+              rows={3}
+              className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+
+          <label className="flex items-start gap-2 text-sm text-zinc-600">
+            <input
+              type="checkbox"
+              checked={marketingConsent}
+              onChange={(e) => setMarketingConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500/20"
+            />
+            <span>I&rsquo;m happy to receive marketing emails and offers from Mapcars.</span>
+          </label>
 
           <button
             type="submit"

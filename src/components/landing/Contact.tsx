@@ -7,8 +7,8 @@ type SubmitState = "idle" | "sending" | "sent";
 const CONTACT_ITEMS = [
   {
     label: "Email Us",
-    value: "maprcarsuk@gmail.com",
-    href: "mailto:maprcarsuk@gmail.com",
+    value: "info@mapcars.uk",
+    href: "mailto:info@mapcars.uk",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24">
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>

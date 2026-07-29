@@ -87,7 +87,7 @@ export default function Hero() {
           </p>
 
           <div className="app-platforms" id="app-platforms">
-            <p className="platform-label">Available on</p>
+            <p className="platform-label">Will be available on</p>
             <div className="platform-badges">
               <a href="#" className="platform-badge" aria-label="Download on App Store">
                 <div className="badge-icon">
@@ -133,16 +133,9 @@ export default function Hero() {
             </div>
           </div>
           <p className="platform-available-text">
-            Available on <strong>iOS</strong> &amp; <strong>Android</strong>
+            Will be available on <strong>iOS</strong> &amp; <strong>Android</strong>
           </p>
         </div>
-      </div>
-
-      <div className="scroll-indicator" id="scroll-indicator">
-        <div className="scroll-mouse">
-          <div className="scroll-wheel"></div>
-        </div>
-        <span>Scroll to explore</span>
       </div>
 
       <div className="slideshow-progress">

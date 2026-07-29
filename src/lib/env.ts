@@ -33,9 +33,13 @@ export const env = {
   apiBaseUrl: requireInProd(
     "NEXT_PUBLIC_API_URL",
     process.env.NEXT_PUBLIC_API_URL,
-    "http://localhost:5126",
+    "http://localhost:5200",
   ),
   mapboxToken: process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "",
+  // Browser key for the Google Maps JavaScript API (admin live map). Must have
+  // "Maps JavaScript API" enabled + an HTTP-referrer restriction for the web
+  // origin. Empty → the live map degrades to a data-only list.
+  googleMapsKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "",
   // Dev-only affordances (e.g. showing OTP codes in the UI) are NEVER enabled in a
   // production build, even if NEXT_PUBLIC_APP_ENV is misconfigured.
   get isDev() {

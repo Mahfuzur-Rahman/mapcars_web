@@ -1,0 +1,83 @@
+# Build the production web image in CI and publish it to GitHub Container Registry.
+#
+# Why CI and not the VM: the GCE box is an e2-small (2 GB RAM) that already runs the
+# .NET API, and a Next 16 build can peak near that. Building here also removes the
+# two redeploy footguns recorded in ../DEPLOYMENT_GCE_PRACTICE.md (a lost `cd`
+# silently rebuilding nothing, and `docker stop` tearing down the old container
+# anyway — leaving a stale image serving traffic).
+#
+# Deploying is then just `docker pull` + restart on the VM. See DEPLOYMENT_WEB.md.
+#
+# ── Required repository secrets (Settings → Secrets and variables → Actions) ──
+#   NEXT_PUBLIC_API_URL          e.g. https://gce-test.mapcars.uk
+#   NEXT_PUBLIC_MAPBOX_TOKEN     pk....
+#   NEXT_PUBLIC_GOOGLE_MAPS_KEY  AIza...  (restrict by HTTP referrer to mapcars.uk)
+#
+# These three are browser-exposed by design (NEXT_PUBLIC_*), but they are kept as
+# secrets rather than committed so rotating one doesn't mean a code change. They are
+# inlined into the bundle at build time, so changing one needs a fresh build.
+
+name: Build and publish web image
+
+# MANUAL ONLY for now — the day-to-day flow is a local `docker build && docker push`
+# from your machine (see DEPLOYMENT_WEB.md § "Deploying"). This workflow is kept as
+# the ready-made upgrade path for when you want builds to come from committed code
+# rather than a working tree, or to deploy without your laptop.
+#
+# Do NOT re-enable the `push:` trigger until the three NEXT_PUBLIC_* secrets below
+# exist — without them `next build` throws by design (src/lib/env.ts), so every push
+# to main would email you a failed run.
+on:
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/mapcars-web
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ghcr.io requires a lowercase image path, but a GitHub owner name may contain
+      # capitals (Mahfuzur-Rahman) — normalise it rather than hardcoding the owner.
+      - name: Normalise the image name
+        run: echo "IMAGE=${IMAGE,,}" >> "$GITHUB_ENV"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # :latest is what the VM pulls; the commit SHA tag makes a rollback to any
+          # previous build a one-line `docker run` with no rebuild.
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_APP_ENV=prod
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_MAPBOX_TOKEN=${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
+            NEXT_PUBLIC_GOOGLE_MAPS_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Report the pushed digest
+        run: |
+          echo "Pushed ${IMAGE}:latest"
+          echo "Rollback tag for this build: ${IMAGE}:${{ github.sha }}"

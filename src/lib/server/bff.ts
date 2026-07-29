@@ -13,10 +13,11 @@ import type { NextRequest } from "next/server";
 const API_BASE =
   process.env.API_INTERNAL_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  (process.env.NODE_ENV === "production" ? undefined : "http://localhost:5126");
+  (process.env.NODE_ENV === "production" ? undefined : "http://127.0.0.1:5200");
 
 export const ADMIN_COOKIE = "mc_admin";
 export const RIDER_COOKIE = "mc_rider";
+export const DRIVER_COOKIE = "mc_driver";
 
 const TIMEOUT_MS = 15_000;
 
@@ -39,6 +40,7 @@ async function callApi(
   if (!API_BASE) throw new Error("API base URL is not configured");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
+  console.log(`[BFF] Calling API: ${method} ${API_BASE}${path}`);
   return fetch(`${API_BASE}${path}`, {
     method,
     headers,
@@ -99,6 +101,18 @@ export async function proxyPublic(req: NextRequest, apiPath: string): Promise<Ne
   }
 }
 
+/** Forward an unauthenticated GET request to the .NET API. */
+export async function proxyPublicGet(apiPath: string): Promise<NextResponse> {
+  try {
+    const apiRes = await callApi(apiPath, "GET");
+    const data = await readJson(apiRes);
+    return NextResponse.json(data, { status: apiRes.status });
+  } catch (reason) {
+    return upstreamError(reason);
+  }
+}
+
+
 /** Forward a login-style POST; on success store the JWT in `cookieName` and strip it from the body. */
 export async function proxyLogin(
   req: NextRequest,
@@ -111,6 +125,34 @@ export async function proxyLogin(
     const data = await readJson(apiRes);
     if (!apiRes.ok || !data) {
       return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
+    }
+    return jsonWithToken(data, cookieName);
+  } catch (reason) {
+    return upstreamError(reason);
+  }
+}
+
+/**
+ * Forward a login POST whose cookie isn't known until the response comes back
+ * — the unified `/auth/login` endpoint returns `userType` ("admin" | "rider" |
+ * "driver"), and that's what picks the cookie out of `cookieByRole`.
+ */
+export async function proxyRoleLogin(
+  req: NextRequest,
+  apiPath: string,
+  cookieByRole: Record<string, string>,
+): Promise<NextResponse> {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const apiRes = await callApi(apiPath, "POST", body);
+    const data = await readJson(apiRes);
+    if (!apiRes.ok || !data) {
+      return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
+    }
+    const userType = (data as { userType?: string }).userType ?? "";
+    const cookieName = cookieByRole[userType];
+    if (!cookieName) {
+      return NextResponse.json({ message: "Unrecognized account type." }, { status: 502 });
     }
     return jsonWithToken(data, cookieName);
   } catch (reason) {
@@ -143,6 +185,80 @@ export async function proxyAuthed(
       return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
     }
     return jsonWithToken(data, cookieName);
+  } catch (reason) {
+    return upstreamError(reason);
+  }
+}
+
+/** Forward a multipart/form-data POST (file upload) with the cookie's JWT as a bearer. */
+export async function proxyAuthedUpload(
+  req: NextRequest,
+  apiPath: string,
+  cookieName: string,
+): Promise<NextResponse> {
+  const token = req.cookies.get(cookieName)?.value;
+  if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+
+  try {
+    if (!API_BASE) throw new Error("API base URL is not configured");
+    const formData = await req.formData();
+    const apiRes = await fetch(`${API_BASE}${apiPath}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+      cache: "no-store",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const data = await readJson(apiRes);
+
+    if (apiRes.status === 401) {
+      const res = NextResponse.json(data ?? { message: "Unauthorized" }, { status: 401 });
+      res.cookies.set(cookieName, "", cookieOptions(0));
+      return res;
+    }
+    return NextResponse.json(data, { status: apiRes.status });
+  } catch (reason) {
+    return upstreamError(reason);
+  }
+}
+
+/**
+ * Stream a binary GET (image / PDF) through with the cookie's JWT as a bearer.
+ * The file bytes never touch client-side JS storage — they flow straight from
+ * the private bucket (via the API) to the browser. Preserves the upstream
+ * content-type and forces `nosniff` so a spoofed type can't be MIME-confused.
+ */
+export async function proxyAuthedDownload(
+  req: NextRequest,
+  apiPath: string,
+  cookieName: string,
+): Promise<NextResponse> {
+  const token = req.cookies.get(cookieName)?.value;
+  if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+
+  try {
+    if (!API_BASE) throw new Error("API base URL is not configured");
+    const apiRes = await fetch(`${API_BASE}${apiPath}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+    if (apiRes.status === 401) {
+      const res = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      res.cookies.set(cookieName, "", cookieOptions(0));
+      return res;
+    }
+    if (!apiRes.ok || !apiRes.body) {
+      return NextResponse.json({ message: "Not found" }, { status: apiRes.status });
+    }
+
+    const headers = new Headers();
+    headers.set("Content-Type", apiRes.headers.get("Content-Type") ?? "application/octet-stream");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Cache-Control", "private, no-store");
+    return new NextResponse(apiRes.body, { status: 200, headers });
   } catch (reason) {
     return upstreamError(reason);
   }

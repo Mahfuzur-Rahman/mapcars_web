@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- MapCars favicon. Same two-swoosh mark as src/components/ui/Logo.tsx —
+       keep the paths in sync if the mark is ever redrawn. -->
+  <defs>
+    <linearGradient id="mc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00b9d9"/>
+      <stop offset="1" stop-color="#4dc842"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#mc)"/>
+  <g transform="translate(64,68) translate(-67,-57)" fill="#fff">
+    <path d="M10 71 C12 44 33 27 61 27 C88 27 110 38 124 52
+             C107 43 84 38 62 38 C39 38 23 50 20 74
+             C19 79 14 80 11 79 C9 77 9 74 10 71 Z"/>
+    <path d="M27 83 C46 69 69 62 91 62 C105 62 116 65 124 69
+             C117 72 112 77 108 83 C100 79 91 77 81 77
+             C62 77 42 82 30 88 C27 89 25 88 25 86 C25 85 26 84 27 83 Z"/>
+  </g>
+</svg>

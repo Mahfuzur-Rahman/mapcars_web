@@ -9,14 +9,17 @@ import type { NextRequest } from "next/server";
 
 const ADMIN_COOKIE = "mc_admin";
 const RIDER_COOKIE = "mc_rider";
+const DRIVER_COOKIE = "mc_driver";
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Admin portal — everything except the login page requires an admin session.
+  // Sign-in is unified at /auth/login (/admin/login is kept only as a
+  // redirect stub for old bookmarks/links).
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
     if (!req.cookies.get(ADMIN_COOKIE)?.value) {
-      return NextResponse.redirect(new URL("/admin/login", req.nextUrl));
+      return NextResponse.redirect(new URL("/auth/login", req.nextUrl));
     }
   }
 
@@ -27,9 +30,27 @@ export function proxy(req: NextRequest) {
     }
   }
 
+  // Rider account area (trip records, document upload) requires a rider session.
+  if (pathname.startsWith("/account")) {
+    if (!req.cookies.get(RIDER_COOKIE)?.value) {
+      return NextResponse.redirect(new URL("/auth/login", req.nextUrl));
+    }
+  }
+
+  // Driver area (documents, payouts) — everything except the login page
+  // requires a driver session. This is what keeps a driver session out of
+  // rider-only pages and vice versa: the two cookies are never interchangeable.
+  // Sign-in is unified at /auth/login (/auth/driver/login is kept only as a
+  // redirect stub for old bookmarks/links).
+  if (pathname.startsWith("/driver") && pathname !== "/auth/driver/login") {
+    if (!req.cookies.get(DRIVER_COOKIE)?.value) {
+      return NextResponse.redirect(new URL("/auth/login", req.nextUrl));
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/auth/profile/:path*"],
+  matcher: ["/admin/:path*", "/auth/profile/:path*", "/account/:path*", "/driver/:path*"],
 };
