@@ -65,9 +65,7 @@ export default function SiteHeader() {
           <Link href="/auth/login" className="site-header-signin">
             Sign in
           </Link>
-          <Link href="/auth/signup" className="nav-cta">
-            Get Started
-          </Link>
+          {/* Get Started hidden for now */}
         </div>
 
         <button

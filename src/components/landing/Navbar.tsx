@@ -114,20 +114,12 @@ export default function Navbar() {
               </li>
             </ul>
 
-            <div className="mobile-drawer-actions">
-              <Link
-                href="/auth/signup"
-                className="nav-cta mobile-drawer-cta"
-                onClick={() => setOpen(false)}
-              >
-                Get Started
-              </Link>
-            </div>
+            {/* Get Started hidden for now */}
           </div>
 
           <div className="nav-actions-right">
-            <Link href="/auth/signup" className="nav-cta desktop-only-cta">
-              Get Started
+            <Link href="/auth/login" className="nav-link-login-btn">
+              Sign in
             </Link>
             <button
               className={`mobile-toggle${open ? " active" : ""}`}

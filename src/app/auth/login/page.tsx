@@ -218,12 +218,7 @@ export default function LoginPage() {
         </form>
       )}
 
-      <p className="auth-alt">
-        New to MapCars? <Link href="/auth/signup">Create a rider account</Link>
-      </p>
-      <p className="auth-hint">
-        Driver? New accounts are created in the MapCars Driver app.
-      </p>
+      {/* Create account link/button hidden for now */}
     </AuthShell>
   );
 }

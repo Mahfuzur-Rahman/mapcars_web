@@ -368,8 +368,11 @@
   .auth-mobile-logo {
     display: flex;
     justify-content: center;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
   .auth-mobile-logo img { height: 54px; width: auto; }
-  .auth-back { display: none; }
+  .auth-back {
+    display: inline-flex;
+    margin-bottom: 16px;
+  }
 }
