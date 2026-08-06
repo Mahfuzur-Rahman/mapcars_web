@@ -40,6 +40,11 @@ export const env = {
   // "Maps JavaScript API" enabled + an HTTP-referrer restriction for the web
   // origin. Empty → the live map degrades to a data-only list.
   googleMapsKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "",
+  // OAuth 2.0 **Web** client ID for "Continue with Google" (Google Identity
+  // Services). The same value must be in the API's `Google:ClientId` audience
+  // list, or it will reject the ID token. Empty → the button still renders but
+  // tells the user Google sign-in isn't set up yet.
+  googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "",
   // Dev-only affordances (e.g. showing OTP codes in the UI) are NEVER enabled in a
   // production build, even if NEXT_PUBLIC_APP_ENV is misconfigured.
   get isDev() {

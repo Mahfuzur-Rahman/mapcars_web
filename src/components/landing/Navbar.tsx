@@ -103,15 +103,6 @@ export default function Navbar() {
                   </a>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="/auth/login"
-                  className="nav-link nav-link-login"
-                  onClick={() => setOpen(false)}
-                >
-                  Sign in
-                </Link>
-              </li>
             </ul>
 
             {/* Get Started hidden for now */}

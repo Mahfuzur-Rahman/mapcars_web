@@ -15,6 +15,7 @@ portal. Talks **only** to the Mapcars .NET API — no direct database access.
 | Service | What for | Env var | Free to start? |
 |---------|----------|---------|----------------|
 | **Mapbox** | Map rendering in the browser | `NEXT_PUBLIC_MAPBOX_TOKEN` | Yes — free tier |
+| **Google OAuth** | "Continue with Google" on sign-in/sign-up | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Yes — free |
 | (the API) | All app data | `NEXT_PUBLIC_API_URL` | Local, free |
 
 > `NEXT_PUBLIC_*` values ship to the browser. Only use the Mapbox **public**
@@ -23,6 +24,28 @@ portal. Talks **only** to the Mapcars .NET API — no direct database access.
 
 ### How to get the Mapbox token
 mapbox.com → Account → *Access tokens* → copy the default public token.
+
+### How to get the Google client ID ("Continue with Google")
+
+The button is already on `/auth/login` and `/auth/signup` and is fully wired
+(Google Identity Services → ID token → `/api/bff/rider/google` →
+`POST /api/v1/auth/riders/google`). It is **not functional yet**: with no client
+ID, clicking it says "Google sign-in isn't set up yet" rather than failing
+silently.
+
+1. Google Cloud console (project `mapcars-2b5a8`) → *APIs & Services →
+   Credentials* → create an **OAuth client ID → Web application**.
+2. Authorised JavaScript origins: `http://localhost:3005` and
+   `https://mapcars.uk`.
+3. Put the ID in `.env.local` → `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, and mirror the
+   file into `keys/web/.env.local`.
+4. Add the **same** ID to the API's `Google:ClientId` (on the VM: the
+   `Google__ClientId` env var in `~/mapcars-api.env`) — the API rejects the
+   token otherwise. Until it is set the API skips the audience check entirely,
+   so don't enable Google sign-in in production before doing this.
+
+`NEXT_PUBLIC_*` is baked in at build time, so on the deployed site this is a
+Docker **build arg**, not a runtime env var — changing it needs a rebuild.
 
 ## Setup
 

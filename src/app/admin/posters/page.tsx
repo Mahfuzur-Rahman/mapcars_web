@@ -46,6 +46,7 @@ export default function AdminPostersPage() {
     if (!window.confirm(`Delete "${poster.title || "this poster"}"? This can't be undone.`)) return;
     try {
       await adminPosters.remove(poster.id);
+      setError(null);
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to delete poster");

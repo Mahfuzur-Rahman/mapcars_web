@@ -9,6 +9,7 @@ import { riderAuth, ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { normalizeUkPhone } from "@/lib/phone";
 import AuthShell from "@/components/auth/AuthShell";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 type Tab = "email" | "phone";
 
@@ -226,6 +227,8 @@ export default function CustomerSignupPage() {
           <p className="auth-hint">We&rsquo;ll text you a 6-digit code. Standard SMS rates apply.</p>
         </form>
       )}
+
+      <GoogleAuthButton onError={setError} intent="signup" />
 
       <p className="auth-legal">
         By continuing you agree to our{" "}

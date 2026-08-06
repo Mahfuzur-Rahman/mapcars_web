@@ -9,6 +9,7 @@ import { riderAuth, unifiedAuth, ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { normalizeUkPhone } from "@/lib/phone";
 import AuthShell from "@/components/auth/AuthShell";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 type Tab = "email" | "phone";
 
@@ -217,6 +218,12 @@ export default function LoginPage() {
           </p>
         </form>
       )}
+
+      <GoogleAuthButton onError={setError} intent="signin" />
+      <p className="auth-hint auth-social-hint">
+        Google sign-in is for rider accounts — drivers and admins should use the
+        Email tab.
+      </p>
 
       {/* Create account link/button hidden for now */}
     </AuthShell>

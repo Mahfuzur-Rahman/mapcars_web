@@ -342,6 +342,58 @@
 
 .auth-hint { text-align: center; font-size: 0.8rem; color: var(--muted); }
 
+/* ---------------- Social sign-in (Google) ---------------- */
+.auth-social { margin-top: 20px; }
+
+.auth-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.auth-or::before,
+.auth-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Google Identity Services injects its own button here once it loads. */
+.auth-google-slot:not(:empty) { display: flex; justify-content: center; }
+
+/* Our branded stand-in, shown until GIS renders (or forever if unconfigured). */
+.auth-google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  background: #fff;
+  color: #3c4043;
+  font-family: var(--font-outfit), sans-serif;
+  font-weight: 600;
+  font-size: 0.97rem;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.auth-google:hover:not(:disabled) {
+  background: #f7f9fb;
+  border-color: #c9d1da;
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.16);
+}
+.auth-google:disabled { opacity: 0.65; cursor: not-allowed; }
+.auth-google svg { width: 18px; height: 18px; flex: none; }
+
+.auth-social-hint { margin-top: 12px; }
+
 .auth-alt {
   margin-top: 26px;
   text-align: center;

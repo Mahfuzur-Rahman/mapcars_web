@@ -5,11 +5,12 @@
 # portable artifact — it runs unchanged on the GCE VM today and on ECS Fargate
 # after the AWS migration.
 #
-# Build (all four NEXT_PUBLIC_* values are required — see the ARG note below):
+# Build (all five NEXT_PUBLIC_* values are required — see the ARG note below):
 #   docker build -t mapcars-web:local \
 #     --build-arg NEXT_PUBLIC_API_URL=https://gce-test.mapcars.uk \
 #     --build-arg NEXT_PUBLIC_MAPBOX_TOKEN=pk.xxx \
-#     --build-arg NEXT_PUBLIC_GOOGLE_MAPS_KEY=AIzaxxx .
+#     --build-arg NEXT_PUBLIC_GOOGLE_MAPS_KEY=AIzaxxx \
+#     --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com .
 
 # ---- Dependencies stage ----
 FROM node:22-alpine AS deps
@@ -47,11 +48,17 @@ ARG NEXT_PUBLIC_APP_ENV=prod
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_MAPBOX_TOKEN
 ARG NEXT_PUBLIC_GOOGLE_MAPS_KEY
+# The OAuth **Web** client ID behind "Continue with Google". Public by design (it
+# ships in the bundle), but it must match one of the audiences in the API's
+# `Google:ClientId` or the API rejects every ID token the button produces.
+# Omitted → the button renders and reports that Google sign-in isn't configured.
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
 ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV \
     NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_MAPBOX_TOKEN=$NEXT_PUBLIC_MAPBOX_TOKEN \
     NEXT_PUBLIC_GOOGLE_MAPS_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_KEY \
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID \
     NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build

@@ -181,8 +181,11 @@ export async function proxyAuthed(
       res.cookies.set(cookieName, "", cookieOptions(0));
       return res;
     }
-    if (!apiRes.ok || !data) {
+    if (!apiRes.ok) {
       return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
+    }
+    if (apiRes.status === 204 || !data) {
+      return new NextResponse(null, { status: apiRes.status });
     }
     return jsonWithToken(data, cookieName);
   } catch (reason) {
@@ -216,8 +219,13 @@ export async function proxyAuthedUpload(
       res.cookies.set(cookieName, "", cookieOptions(0));
       return res;
     }
+    if (!apiRes.ok) {
+      // Log the upstream error so it's visible in Next.js server logs.
+      console.error(`[BFF] Upload to ${apiPath} failed: HTTP ${apiRes.status}`, data);
+    }
     return NextResponse.json(data, { status: apiRes.status });
   } catch (reason) {
+    console.error(`[BFF] Upload to ${apiPath} threw:`, reason);
     return upstreamError(reason);
   }
 }
