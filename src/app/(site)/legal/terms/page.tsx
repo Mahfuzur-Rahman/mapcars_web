@@ -24,11 +24,11 @@ export default function TermsPage() {
             These Terms of Service (&ldquo;Terms&rdquo;) govern your access to
             and use of the <strong>MapCars</strong> rider and driver apps and
             related services (together, the &ldquo;Service&rdquo;), operated by{" "}
-            <strong>MAP CARS CHI LTD</strong> (company number 15837715). By
-            creating an account or using the Service, you agree to these Terms.
-            This is a sample document provided for preview.
+            <strong>MAP CARS CHI LTD</strong> (company number <strong>15837715</strong>,
+            registered in England and Wales and headquartered in Chichester, West Sussex).
+            By creating an account or using the Service, you agree to these Terms.
           </div>
-          <p className="doc-updated">Last updated: 7 July 2026</p>
+          <p className="doc-updated">Last updated: 8 August 2026</p>
 
           <h2>1. Eligibility</h2>
           <p>
@@ -116,7 +116,7 @@ export default function TermsPage() {
           <h2>12. Contact</h2>
           <div className="doc-contact">
             <p><strong>MAP CARS CHI LTD</strong></p>
-            <p>Email: <a href="mailto:mapcarsuk@gmail.com">mapcarsuk@gmail.com</a></p>
+            <p>Email: <a href="mailto:info@mapcars.uk">info@mapcars.uk</a></p>
             <p style={{ marginBottom: 0 }}>Phone: <a href="tel:+441243252255">01243 252255</a></p>
           </div>
         </div>

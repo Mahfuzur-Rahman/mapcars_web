@@ -135,8 +135,12 @@ export interface OtpSentResponse {
 // Returned by the unified login (token stripped → cookie set based on role).
 // Only the fields for the matched `userType` are populated.
 export interface UnifiedSession {
+  /** True when the email+password matched more than one account — see `availableUserTypes`. */
+  requiresChoice?: boolean;
+  availableUserTypes?: ("rider" | "driver")[];
+
   expiresInMinutes: number;
-  userType: "admin" | "rider" | "driver";
+  userType: "admin" | "rider" | "driver" | "";
   userId?: string;
   fullName?: string;
   email?: string;
@@ -191,8 +195,9 @@ export type PingResponse = { message: string; utc: string };
 // submitted credentials. See `web/src/app/auth/login/page.tsx`.
 
 export const unifiedAuth = {
-  login: (email: string, password: string) =>
-    bff<UnifiedSession>("POST", "/auth/login", { email, password }),
+  /** `loginAs` is only needed on a second call, after the first came back with `requiresChoice`. */
+  login: (email: string, password: string, loginAs?: "rider" | "driver") =>
+    bff<UnifiedSession>("POST", "/auth/login", { email, password, loginAs }),
 };
 
 // ── Admin auth  (BFF: /api/bff/admin/*) ──────────────────────────────────────
@@ -225,6 +230,10 @@ export const adminAuth = {
     }),
 
   logout: () => bff<{ ok: boolean }>("POST", "/admin/logout"),
+
+  /** Changes the signed-in admin's own password. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    bff<void>("POST", "/admin/me/change-password", { currentPassword, newPassword }),
 };
 
 // ── Admin management  (BFF: /api/bff/admin/*) — SuperAdmin only ──────────────
@@ -334,8 +343,13 @@ export const riderAuth = {
   verifyEmail: (email: string, code: string) =>
     bff<RiderSession>("POST", "/rider/verify-email", { email, code }),
 
-  google: (idToken: string) =>
-    bff<RiderSession>("POST", "/rider/google", { idToken }),
+  /**
+   * `signUp` must be true only from the create-account page. From the sign-in
+   * page it stays false, so a Google account with no Mapcars account is told to
+   * sign up instead of silently becoming a new rider.
+   */
+  google: (idToken: string, signUp = false) =>
+    bff<RiderSession>("POST", "/rider/google", { idToken, signUp }),
 
   /** Current rider's profile (Wave 1 profile/compliance fields). */
   getProfile: () => bff<RiderProfileResponse>("GET", "/rider/me"),
@@ -879,6 +893,188 @@ export const adminPosters = {
 
   remove: (id: string) => bff<void>("DELETE", `/admin/posters/${id}`),
 };
+
+// ── Error logger ─────────────────────────────────────────────────────────────
+
+export type ErrorLogSource = "Api" | "Web" | "CustomerApp" | "DriverApp";
+export type ErrorLogLevel = "Warning" | "Error" | "Fatal";
+
+export interface ErrorLogListItem {
+  id: string;
+  source: ErrorLogSource;
+  level: ErrorLogLevel;
+  message: string;
+  exceptionType: string | null;
+  path: string | null;
+  statusCode: number | null;
+  userType: string | null;
+  isResolved: boolean;
+  createdAtUtc: string;
+}
+
+export interface ErrorLogDetail extends ErrorLogListItem {
+  stackTrace: string | null;
+  httpMethod: string | null;
+  userId: string | null;
+  appVersion: string | null;
+  platform: string | null;
+  userAgent: string | null;
+  ipAddress: string | null;
+  correlationId: string | null;
+  resolvedAtUtc: string | null;
+}
+
+export interface ErrorLogPage {
+  items: ErrorLogListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ErrorLogSummary {
+  total: number;
+  unresolved: number;
+  lastDay: number;
+  errorLevel: number;
+  warningLevel: number;
+}
+
+export interface ErrorLogFilters {
+  source?: string;
+  level?: string;
+  resolved?: boolean;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export const adminErrorLogs = {
+  list: (filters: ErrorLogFilters = {}) => {
+    const q = new URLSearchParams();
+    if (filters.source) q.set("source", filters.source);
+    if (filters.level) q.set("level", filters.level);
+    if (filters.resolved !== undefined) q.set("resolved", String(filters.resolved));
+    if (filters.search) q.set("search", filters.search);
+    q.set("page", String(filters.page ?? 1));
+    q.set("pageSize", String(filters.pageSize ?? 50));
+    return bff<ErrorLogPage>("GET", `/admin/error-logs?${q}`);
+  },
+
+  summary: () => bff<ErrorLogSummary>("GET", "/admin/error-logs/summary"),
+
+  get: (id: string) => bff<ErrorLogDetail>("GET", `/admin/error-logs/${id}`),
+
+  setResolved: (id: string, resolved: boolean) =>
+    bff<void>("PATCH", `/admin/error-logs/${id}/resolved`, { resolved }),
+};
+
+// ── Email ─────────────────────────────────────────────────────────────────────
+
+export type EmailCategory = "System" | "Compose" | string;
+export type EmailStatus = "Sent" | "Failed";
+
+export interface EmailLogListItem {
+  id: string;
+  toEmail: string;
+  fromAddress: string;
+  subject: string;
+  provider: string;
+  category: EmailCategory;
+  status: EmailStatus;
+  createdAtUtc: string;
+}
+
+export interface EmailLogDetail extends EmailLogListItem {
+  fromName: string | null;
+  bodyHtml: string;
+  errorMessage: string | null;
+  sentByAdminId: string | null;
+}
+
+export interface EmailLogPage {
+  items: EmailLogListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface EmailFilters {
+  category?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ComposeEmailRequest {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  fromAddress: string;
+  fromName?: string;
+}
+
+export const adminEmails = {
+  list: (filters: EmailFilters = {}) => {
+    const q = new URLSearchParams();
+    if (filters.category) q.set("category", filters.category);
+    if (filters.status) q.set("status", filters.status);
+    if (filters.search) q.set("search", filters.search);
+    q.set("page", String(filters.page ?? 1));
+    q.set("pageSize", String(filters.pageSize ?? 50));
+    return bff<EmailLogPage>("GET", `/admin/emails?${q}`);
+  },
+
+  get: (id: string) => bff<EmailLogDetail>("GET", `/admin/emails/${id}`),
+
+  compose: (request: ComposeEmailRequest) => bff<void>("POST", "/admin/emails", request),
+};
+
+/**
+ * Reports a web-side failure to the central error log.
+ *
+ * Goes straight to the API rather than through the BFF, and deliberately does
+ * NOT use `http()`: this runs *while something is already broken*, so it must
+ * not show the progress bar, must not throw, and must not depend on a working
+ * session. Everything here is best-effort and silent — a failed error report is
+ * not worth a second error.
+ */
+export function reportError(
+  error: unknown,
+  context: { path?: string; level?: ErrorLogLevel } = {},
+): void {
+  try {
+    const err = error instanceof Error ? error : undefined;
+    const message = err?.message ?? String(error ?? "Unknown error");
+
+    // Never report our own API failures — the API already logged those itself
+    // when it produced them, and echoing them back would double every entry.
+    if (error instanceof ApiError) return;
+
+    const body = JSON.stringify({
+      source: "Web",
+      level: context.level ?? "Error",
+      message,
+      exceptionType: err?.name ?? typeof error,
+      stackTrace: err?.stack ?? null,
+      path:
+        context.path ??
+        (typeof window !== "undefined" ? window.location.pathname : null),
+      platform: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 50) : null,
+    });
+
+    void fetch(`${env.apiBaseUrl}/api/v1/error-logs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true, // survives a navigation away from the broken page
+    }).catch(() => {
+      /* reporting is best-effort */
+    });
+  } catch {
+    /* reporting must never throw */
+  }
+}
 
 // ── Health / ping (used by home page) ────────────────────────────────────────
 

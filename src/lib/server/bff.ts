@@ -149,6 +149,12 @@ export async function proxyRoleLogin(
     if (!apiRes.ok || !data) {
       return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
     }
+    // The unified endpoint can ask the client to disambiguate instead of
+    // returning a token (e.g. the same email+password matches both a rider
+    // and a driver account) — nothing to put in a cookie yet.
+    if ((data as { requiresChoice?: boolean }).requiresChoice) {
+      return NextResponse.json(data, { status: 200 });
+    }
     const userType = (data as { userType?: string }).userType ?? "";
     const cookieName = cookieByRole[userType];
     if (!cookieName) {

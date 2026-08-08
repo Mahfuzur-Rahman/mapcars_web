@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/ride", label: "Ride" },
   { href: "/drive", label: "Drive" },
   { href: "/safety", label: "Safety" },
+  { href: "/about", label: "About" },
   { href: "/#contact", label: "Contact" },
 ];
 
@@ -62,10 +63,9 @@ export default function SiteHeader() {
         </ul>
 
         <div className="site-header-actions">
-          <Link href="/auth/login" className="site-header-signin">
+          <Link href="/auth/login" className="nav-link-login-btn">
             Sign in
           </Link>
-          {/* Get Started hidden for now */}
         </div>
 
         <button

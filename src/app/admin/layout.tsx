@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { adminAuth, type AdminSession, type MenuResponse } from "@/lib/api";
 import { AppShell, PageLoader, type NavNode } from "@/components/ui";
+import ChangePasswordDialog from "./ChangePasswordDialog";
 
 /** The API's menu tree is already the shape we need — just rename the fields. */
 function toNav(menus: MenuResponse[]): NavNode[] {
@@ -23,6 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const [data, setData] = useState<AdminSession | null>(null);
   const [ready, setReady] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (isLoginPage) return;
@@ -59,9 +61,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       tone="admin"
       nav={toNav(data.menus)}
       user={{ name: data.admin.fullName, meta: data.admin.role }}
+      onUserClick={() => setChangingPassword(true)}
       onSignOut={signOut}
     >
       {children}
+      {changingPassword && <ChangePasswordDialog onClose={() => setChangingPassword(false)} />}
     </AppShell>
   );
 }

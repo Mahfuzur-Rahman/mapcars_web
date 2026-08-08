@@ -30,12 +30,11 @@ export default function LicensesPage() {
       <Section narrow>
         <div className="doc">
           <div className="doc-lead">
-            MapCars is operated by <strong>MAP CARS CHI LTD</strong>, a private
-            hire operator registered in England and Wales. This page summarises
-            our licensing position and acknowledges the open-source software we
-            build on. This is a sample document provided for preview.
+            MapCars is operated by <strong>MAP CARS CHI LTD</strong> (company number <strong>15837715</strong>),
+            a private hire platform registered in England and Wales and headquartered in Chichester, West Sussex.
+            This page summarises our operating compliance framework and acknowledges the open-source software that helps power our platform.
           </div>
-          <p className="doc-updated">Last updated: 7 July 2026</p>
+          <p className="doc-updated">Last updated: 8 August 2026</p>
 
           <h2>1. Operator licensing</h2>
           <p>
@@ -102,7 +101,7 @@ export default function LicensesPage() {
           <div className="doc-contact">
             <p><strong>MAP CARS CHI LTD</strong></p>
             <p style={{ marginBottom: 0 }}>
-              Email: <a href="mailto:mapcarsuk@gmail.com">mapcarsuk@gmail.com</a>
+              Email: <a href="mailto:info@mapcars.uk">info@mapcars.uk</a>
             </p>
           </div>
         </div>

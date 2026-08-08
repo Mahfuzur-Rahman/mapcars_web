@@ -83,7 +83,7 @@ export default function PressPage() {
           <div className="split-visual">
             <div className="doc-contact" style={{ marginTop: 0 }}>
               <p><strong>Media enquiries</strong></p>
-              <p>Email: <a href="mailto:mapcarsuk@gmail.com">mapcarsuk@gmail.com</a></p>
+              <p>Email: <a href="mailto:info@mapcars.uk">info@mapcars.uk</a></p>
               <p>Phone: <a href="tel:+441243252255">01243 252255</a></p>
               <p style={{ marginBottom: 0 }}>
                 Based in Chichester, United Kingdom

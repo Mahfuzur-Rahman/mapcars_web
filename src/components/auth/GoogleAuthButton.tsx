@@ -92,18 +92,21 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
       setBusy(true);
       onError("");
       try {
-        const session = await riderAuth.google(idToken);
+        // Only the create-account page may bring a new rider into existence.
+        const session = await riderAuth.google(idToken, intent === "signup");
         router.push(session.isProfileComplete ? "/account" : "/auth/profile");
         router.refresh();
       } catch (err) {
         onError(
-          err instanceof ApiError ? err.message : "Google sign-in failed",
+          err instanceof ApiError
+            ? err.message
+            : "Google sign-in didn't work. Please try again, or use email instead.",
         );
       } finally {
         setBusy(false);
       }
     },
-    [onError, router],
+    [intent, onError, router],
   );
 
   useEffect(() => {

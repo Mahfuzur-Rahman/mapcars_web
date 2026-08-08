@@ -65,23 +65,47 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Set when the same email+password matches both a rider and a driver
+  // account — the user picks which one they mean before we redirect.
+  const [choosingRole, setChoosingRole] = useState(false);
+
+  function goToDestination(res: { userType: string; isProfileComplete?: boolean }) {
+    switch (res.userType) {
+      case "admin":
+        router.push("/admin");
+        break;
+      case "driver":
+        router.push("/driver");
+        break;
+      default:
+        router.push(res.isProfileComplete ? "/account" : "/auth/profile");
+    }
+    router.refresh();
+  }
+
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
       const res = await unifiedAuth.login(email, password);
-      switch (res.userType) {
-        case "admin":
-          router.push("/admin");
-          break;
-        case "driver":
-          router.push("/driver");
-          break;
-        default:
-          router.push(res.isProfileComplete ? "/account" : "/auth/profile");
+      if (res.requiresChoice) {
+        setChoosingRole(true);
+        return;
       }
-      router.refresh();
+      goToDestination(res);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function chooseRole(userType: "rider" | "driver") {
+    setLoading(true);
+    setError(null);
+    try {
+      goToDestination(await unifiedAuth.login(email, password, userType));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login failed");
     } finally {
@@ -113,26 +137,11 @@ export default function LoginPage() {
       tagline="One sign-in for riders, drivers, and admins — we'll take you straight to your dashboard."
     >
       <h2 className="auth-title">Sign in</h2>
-      <p className="auth-sub">Good to see you again. Let&rsquo;s get you moving.</p>
-
-      <div className="auth-tabs" role="tablist">
-        {(["email", "phone"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            className={`auth-tab${tab === t ? " active" : ""}`}
-            onClick={() => {
-              setTab(t);
-              setError(null);
-            }}
-          >
-            {t === "email" ? IC.mail : IC.phone}
-            {t === "email" ? "Email" : "Phone"}
-          </button>
-        ))}
-      </div>
+      <p className="auth-sub">
+        {choosingRole
+          ? "This email is used by both a rider and a driver account."
+          : "Good to see you again. Let’s get you moving."}
+      </p>
 
       {error && (
         <div className="auth-error" role="alert">
@@ -141,89 +150,142 @@ export default function LoginPage() {
         </div>
       )}
 
-      {tab === "email" ? (
-        <form className="auth-form" onSubmit={handleEmailLogin}>
-          <div className="auth-field">
-            <label className="auth-label" htmlFor="email">Email address</label>
-            <div className="auth-input-wrap">
-              <input
-                id="email"
-                type="email"
-                required
-                autoFocus
-                autoComplete="email"
-                className="auth-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com"
-              />
-            </div>
-          </div>
-          <div className="auth-field">
-            <div className="auth-row-between">
-              <label className="auth-label" htmlFor="password">Password</label>
-              <Link href="/#contact" className="auth-link">Forgot password?</Link>
-            </div>
-            <div className="auth-input-wrap">
-              <input
-                id="password"
-                type={showPw ? "text" : "password"}
-                required
-                autoComplete="current-password"
-                className="auth-input has-toggle"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-              <button
-                type="button"
-                className="auth-pw-toggle"
-                aria-label={showPw ? "Hide password" : "Show password"}
-                onClick={() => setShowPw((v) => !v)}
-              >
-                {showPw ? IC.eyeOff : IC.eye}
-              </button>
-            </div>
-          </div>
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? <span className="auth-spinner" /> : <>Sign in {IC.arrow}</>}
+      {choosingRole ? (
+        <div className="auth-form">
+          <button
+            type="button"
+            className="auth-btn"
+            disabled={loading}
+            onClick={() => chooseRole("rider")}
+          >
+            {loading ? <span className="auth-spinner" /> : <>Continue as rider {IC.arrow}</>}
           </button>
-        </form>
+          <button
+            type="button"
+            className="auth-btn"
+            disabled={loading}
+            onClick={() => chooseRole("driver")}
+          >
+            {loading ? <span className="auth-spinner" /> : <>Continue as driver {IC.arrow}</>}
+          </button>
+          <button
+            type="button"
+            className="auth-link"
+            disabled={loading}
+            onClick={() => {
+              setChoosingRole(false);
+              setError(null);
+            }}
+          >
+            &larr; Use a different account
+          </button>
+        </div>
       ) : (
-        <form className="auth-form" onSubmit={handlePhoneLogin}>
-          <div className="auth-field">
-            <label className="auth-label" htmlFor="phone">Mobile number</label>
-            <div className="auth-phone">
-              <span className="auth-prefix">🇬🇧 +44</span>
-              <input
-                id="phone"
-                type="tel"
-                required
-                autoFocus
-                autoComplete="tel"
-                className="auth-input"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="7700 900000"
-              />
-            </div>
+        <>
+          <div className="auth-tabs" role="tablist">
+            {(["email", "phone"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tab === t}
+                className={`auth-tab${tab === t ? " active" : ""}`}
+                onClick={() => {
+                  setTab(t);
+                  setError(null);
+                }}
+              >
+                {t === "email" ? IC.mail : IC.phone}
+                {t === "email" ? "Email" : "Phone"}
+              </button>
+            ))}
           </div>
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? <span className="auth-spinner" /> : <>Send login code {IC.arrow}</>}
-          </button>
-          <p className="auth-hint">
-            We&rsquo;ll text you a 6-digit code. Standard SMS rates apply. Phone
-            sign-in is for rider accounts — drivers and admins should use the
+
+          {tab === "email" ? (
+            <form className="auth-form" onSubmit={handleEmailLogin}>
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="email">Email address</label>
+                <div className="auth-input-wrap">
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    autoFocus
+                    autoComplete="email"
+                    className="auth-input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@email.com"
+                  />
+                </div>
+              </div>
+              <div className="auth-field">
+                <div className="auth-row-between">
+                  <label className="auth-label" htmlFor="password">Password</label>
+                  <Link href="/#contact" className="auth-link">Forgot password?</Link>
+                </div>
+                <div className="auth-input-wrap">
+                  <input
+                    id="password"
+                    type={showPw ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    className="auth-input has-toggle"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    className="auth-pw-toggle"
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                    onClick={() => setShowPw((v) => !v)}
+                  >
+                    {showPw ? IC.eyeOff : IC.eye}
+                  </button>
+                </div>
+              </div>
+              <button type="submit" className="auth-btn" disabled={loading}>
+                {loading ? <span className="auth-spinner" /> : <>Sign in {IC.arrow}</>}
+              </button>
+            </form>
+          ) : (
+            <form className="auth-form" onSubmit={handlePhoneLogin}>
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="phone">Mobile number</label>
+                <div className="auth-phone">
+                  <span className="auth-prefix">🇬🇧 +44</span>
+                  <input
+                    id="phone"
+                    type="tel"
+                    required
+                    autoFocus
+                    autoComplete="tel"
+                    className="auth-input"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="7700 900000"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="auth-btn" disabled={loading}>
+                {loading ? <span className="auth-spinner" /> : <>Send login code {IC.arrow}</>}
+              </button>
+              <p className="auth-hint">
+                We&rsquo;ll text you a 6-digit code. Standard SMS rates apply. Phone
+                sign-in is for rider accounts — drivers and admins should use the
+                Email tab.
+              </p>
+            </form>
+          )}
+
+          <GoogleAuthButton onError={setError} intent="signin" />
+          <p className="auth-hint auth-social-hint">
+            Google sign-in is for rider accounts — drivers and admins should use the
             Email tab.
           </p>
-        </form>
+        </>
       )}
-
-      <GoogleAuthButton onError={setError} intent="signin" />
-      <p className="auth-hint auth-social-hint">
-        Google sign-in is for rider accounts — drivers and admins should use the
-        Email tab.
-      </p>
 
       {/* Create account link/button hidden for now */}
     </AuthShell>

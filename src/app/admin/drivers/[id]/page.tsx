@@ -87,6 +87,10 @@ export default function AdminDriverDetailPage() {
     return <div className="p-8 text-sm text-zinc-400">Loading…</div>;
   }
 
+  // Documents the admin hasn't ruled on yet — approving over these is allowed
+  // (the decision is the admin's), but it should never be accidental.
+  const unreviewedDocs = driver.documents.filter((d) => d.reviewStatus === "Pending").length;
+
   return (
     <div className="p-8">
       <BackLink />
@@ -206,8 +210,22 @@ export default function AdminDriverDetailPage() {
           </Card>
 
           {/* Driver decision */}
-          <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <span className="mr-2 text-sm font-semibold text-zinc-700">Set driver status:</span>
+          <div className="mt-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold text-zinc-700">Driver status</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Only an <span className="font-semibold text-zinc-700">approved</span> driver can go
+              online, see trip requests and accept trips. Suspending or rejecting takes them off
+              the road immediately.
+            </p>
+
+            {unreviewedDocs > 0 && driver.status !== "Approved" && (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                {unreviewedDocs} document{unreviewedDocs === 1 ? " is" : "s are"} still unreviewed —
+                check each one above before approving this driver.
+              </p>
+            )}
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setStatus("Approved")}
               disabled={busy || driver.status === "Approved"}
@@ -229,6 +247,7 @@ export default function AdminDriverDetailPage() {
             >
               Reject
             </button>
+            </div>
           </div>
         </div>
       </div>

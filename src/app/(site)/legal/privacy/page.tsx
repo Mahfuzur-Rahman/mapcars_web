@@ -39,7 +39,7 @@ export default function PrivacyPage() {
             across the South Coast of the United Kingdom, including Southampton,
             Portsmouth, Chichester, Brighton and surrounding areas. If you have
             any questions about this policy or your data, contact us at{" "}
-            <a href="mailto:mapcarsuk@gmail.com">mapcarsuk@gmail.com</a>.
+            <a href="mailto:info@mapcars.uk">info@mapcars.uk</a>.
           </p>
 
           <h2>2. Data we collect</h2>
@@ -131,7 +131,7 @@ export default function PrivacyPage() {
             Under UK GDPR you have the right to access, correct, delete,
             restrict, or object to processing of your personal data, and to data
             portability. To exercise any of these, contact{" "}
-            <a href="mailto:mapcarsuk@gmail.com">mapcarsuk@gmail.com</a>. You
+            <a href="mailto:info@mapcars.uk">info@mapcars.uk</a>. You
             also have the right to complain to the UK Information
             Commissioner&rsquo;s Office (ICO) at{" "}
             <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer">ico.org.uk</a>.
@@ -156,7 +156,7 @@ export default function PrivacyPage() {
           <h2>10. Delete account</h2>
           <p>
             To delete your account and personal data, email{" "}
-            <a href="mailto:mapcarsuk@gmail.com">mapcarsuk@gmail.com</a> from your
+            <a href="mailto:info@mapcars.uk">info@mapcars.uk</a> from your
             registered address. We will permanently delete your profile, contact
             details, social logins and booking history within 30 days, retaining
             only records we must keep for legal, tax and licensing obligations.
@@ -166,7 +166,7 @@ export default function PrivacyPage() {
           <div className="doc-contact">
             <p><strong>MapCars</strong> — operated by MAP CARS CHI LTD</p>
             <p>Company number: <strong>15837715</strong> — registered in England and Wales</p>
-            <p>Email: <a href="mailto:mapcarsuk@gmail.com">mapcarsuk@gmail.com</a></p>
+            <p>Email: <a href="mailto:info@mapcars.uk">info@mapcars.uk</a></p>
             <p>Phone: <a href="tel:+441243252255">01243 252255</a></p>
             <p>Mobile: <a href="tel:+447389077004">+44 7389 077004</a></p>
             <p style={{ marginBottom: 0 }}>

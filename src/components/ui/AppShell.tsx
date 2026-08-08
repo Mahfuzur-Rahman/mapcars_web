@@ -117,12 +117,15 @@ export default function AppShell({
   tone,
   nav,
   user,
+  onUserClick,
   onSignOut,
   children,
 }: {
   tone: PortalTone;
   nav: NavNode[];
   user?: { name?: string; meta?: string };
+  /** Optional — makes the sidebar user block a button (e.g. open "Change password"). */
+  onUserClick?: () => void;
   onSignOut: () => void | Promise<void>;
   children: React.ReactNode;
 }) {
@@ -152,7 +155,13 @@ export default function AppShell({
 
       <div className="border-t border-line p-3">
         {user && (
-          <div className="mb-1 flex items-center gap-2.5 px-2 py-1.5">
+          <button
+            onClick={onUserClick}
+            disabled={!onUserClick}
+            className={`mb-1 flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
+              onUserClick ? "hover:bg-slate-50" : "cursor-default"
+            }`}
+          >
             <span
               aria-hidden
               className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-tint text-xs font-bold text-brand-ink"
@@ -165,7 +174,7 @@ export default function AppShell({
                 <p className="truncate text-xs text-ink-faint">{user.meta}</p>
               )}
             </div>
-          </div>
+          </button>
         )}
         <button
           onClick={onSignOut}

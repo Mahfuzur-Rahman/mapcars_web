@@ -20,14 +20,12 @@ export function PageHero({
   title,
   subtitle,
   center = false,
-  sample = true,
   actions,
 }: {
   eyebrow: string;
   title: ReactNode;
   subtitle: string;
   center?: boolean;
-  sample?: boolean;
   actions?: ReactNode;
 }) {
   return (
@@ -41,11 +39,6 @@ export function PageHero({
           <h1 className="page-hero-title">{title}</h1>
           <p className="page-hero-sub">{subtitle}</p>
           {actions && <div className="page-hero-actions">{actions}</div>}
-          {sample && (
-            <div>
-              <span className="sample-note">Sample page — preview content</span>
-            </div>
-          )}
         </div>
       </div>
     </header>
