@@ -12,7 +12,6 @@ export default function TermsPage() {
     <>
       <PageHero
         center
-        sample={false}
         eyebrow="Legal"
         title="Terms of Service"
         subtitle="The agreement between you and MapCars when you use our apps and services."

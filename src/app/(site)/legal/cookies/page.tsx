@@ -22,7 +22,6 @@ export default function CookiesPage() {
     <>
       <PageHero
         center
-        sample={false}
         eyebrow="Legal &amp; Compliance"
         title="Cookie Policy"
         subtitle="How we use cookies, session storage, and local device technologies to provide secure, transparent mobility services."

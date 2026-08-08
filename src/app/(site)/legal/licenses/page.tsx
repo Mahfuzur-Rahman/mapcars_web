@@ -21,7 +21,6 @@ export default function LicensesPage() {
     <>
       <PageHero
         center
-        sample={false}
         eyebrow="Legal"
         title="Licenses"
         subtitle="Operating licences and the open-source software that helps power MapCars."

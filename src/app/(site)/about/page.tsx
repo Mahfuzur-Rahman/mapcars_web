@@ -72,7 +72,6 @@ export default function AboutPage() {
     <>
       {/* Dynamic Page Hero with verified credentials and interactive action buttons */}
       <PageHero
-        sample={false}
         eyebrow="Our Story & Heritage"
         title={
           <>

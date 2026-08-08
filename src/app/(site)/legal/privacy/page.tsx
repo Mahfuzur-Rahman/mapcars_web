@@ -12,7 +12,6 @@ export default function PrivacyPage() {
     <>
       <PageHero
         center
-        sample={false}
         eyebrow="Legal"
         title="Privacy Policy"
         subtitle="How we handle your data across the MapCars rider and driver apps."
