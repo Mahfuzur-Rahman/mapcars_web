@@ -225,10 +225,16 @@ export default function AdminDriverDetailPage() {
               </p>
             )}
 
+            {!driver.hasProfilePicture && driver.status !== "Approved" && (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                This driver hasn&apos;t uploaded a profile picture — required before approval.
+              </p>
+            )}
+
             <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setStatus("Approved")}
-              disabled={busy || driver.status === "Approved"}
+              disabled={busy || driver.status === "Approved" || !driver.hasProfilePicture}
               className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
             >
               Approve driver

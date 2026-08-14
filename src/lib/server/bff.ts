@@ -21,6 +21,22 @@ export const DRIVER_COOKIE = "mc_driver";
 
 const TIMEOUT_MS = 15_000;
 
+/**
+ * The refresh-token cookie paired with an access-token cookie ("mc_rider" ->
+ * "mc_rider_rt"). Derived rather than declared so every existing
+ * `proxyAuthed(..., SOME_COOKIE)` call site gains renewal without being touched.
+ */
+function refreshCookieFor(cookieName: string): string {
+  return `${cookieName}_rt`;
+}
+
+/**
+ * How long the refresh cookie lives. Matches the API's default
+ * `Jwt:RefreshTokenDays`; the API is still the authority — an expired token is
+ * rejected there regardless of what the browser kept.
+ */
+const REFRESH_COOKIE_MAX_AGE = 90 * 24 * 60 * 60;
+
 function cookieOptions(maxAgeSeconds: number) {
   return {
     httpOnly: true,
@@ -73,21 +89,81 @@ function upstreamError(reason: unknown): NextResponse {
   );
 }
 
-/** If the upstream body carries a JWT, move it into an httpOnly cookie and strip it from the response. */
+/**
+ * If the upstream body carries credentials, move them into httpOnly cookies and
+ * strip them from the response.
+ *
+ * Both `token` and `refreshToken` must be stripped. The refresh token is the
+ * more dangerous of the two to leak — it lives 90 days and mints unlimited
+ * access tokens, where the JWT expires in an hour — so letting it through into
+ * the JSON body would hand client-side JS a long-lived credential and undo the
+ * whole reason this BFF exists.
+ */
 function jsonWithToken(data: Record<string, unknown> | unknown[], cookieName: string): NextResponse {
   // A JSON array body (e.g. list endpoints) never carries a token — pass it
   // through as-is. Spreading it below would corrupt it into an object.
   if (Array.isArray(data)) return NextResponse.json(data, { status: 200 });
 
-  const { token, expiresInMinutes, ...rest } = data as {
+  const { token, refreshToken, expiresInMinutes, ...rest } = data as {
     token?: string;
+    refreshToken?: string;
     expiresInMinutes?: number;
   } & Record<string, unknown>;
   const res = NextResponse.json(rest, { status: 200 });
   if (typeof token === "string" && token) {
     res.cookies.set(cookieName, token, cookieOptions((expiresInMinutes ?? 60) * 60));
   }
+  if (typeof refreshToken === "string" && refreshToken) {
+    res.cookies.set(refreshCookieFor(cookieName), refreshToken, cookieOptions(REFRESH_COOKIE_MAX_AGE));
+  }
   return res;
+}
+
+/** Result of a server-side token renewal. */
+type Renewal = { token: string; refreshToken: string; expiresInMinutes: number };
+
+/**
+ * Trades the refresh cookie for a fresh access token. Returns null when there is
+ * nothing to renew with, or the API rejects it (expired, revoked, or replayed) —
+ * in which case the caller should clear both cookies and let the user sign in.
+ */
+async function renewSession(req: NextRequest, cookieName: string): Promise<Renewal | null> {
+  const refreshToken = req.cookies.get(refreshCookieFor(cookieName))?.value;
+  if (!refreshToken) return null;
+
+  try {
+    const apiRes = await callApi("/api/v1/auth/refresh", "POST", { refreshToken });
+    if (!apiRes.ok) return null;
+
+    const data = await readJson(apiRes);
+    const renewed = data as Partial<Renewal> | null;
+    if (!renewed || typeof renewed.token !== "string") return null;
+
+    return {
+      token: renewed.token,
+      // The API rotates on use, so this differs from what we sent. Storing the
+      // successor is mandatory — replaying the old one reads as theft server-side
+      // and revokes every session the user has.
+      refreshToken: typeof renewed.refreshToken === "string" ? renewed.refreshToken : refreshToken,
+      expiresInMinutes: typeof renewed.expiresInMinutes === "number" ? renewed.expiresInMinutes : 60,
+    };
+  } catch {
+    // Network trouble reaching the API — not a dead session. The caller falls
+    // back to a 401 and the user can simply try again.
+    return null;
+  }
+}
+
+/** Writes renewed credentials onto a response. */
+function setSessionCookies(res: NextResponse, cookieName: string, renewed: Renewal): void {
+  res.cookies.set(cookieName, renewed.token, cookieOptions(renewed.expiresInMinutes * 60));
+  res.cookies.set(refreshCookieFor(cookieName), renewed.refreshToken, cookieOptions(REFRESH_COOKIE_MAX_AGE));
+}
+
+/** Expires both halves of the session on a response. */
+function clearSessionCookies(res: NextResponse, cookieName: string): void {
+  res.cookies.set(cookieName, "", cookieOptions(0));
+  res.cookies.set(refreshCookieFor(cookieName), "", cookieOptions(0));
 }
 
 /** Forward a POST body and return the upstream response verbatim (no cookie set). */
@@ -166,7 +242,15 @@ export async function proxyRoleLogin(
   }
 }
 
-/** Attach the cookie's JWT as a bearer; refresh the cookie if a new token comes back; clear it on 401. */
+/**
+ * Attach the cookie's JWT as a bearer; on a 401, silently renew the session with
+ * the refresh cookie and replay the request; only clear the cookies when the
+ * refresh token is dead too.
+ *
+ * The renewal lives here rather than in each route because every authed BFF
+ * route already funnels through this function — so all of them gain it without
+ * being touched.
+ */
 export async function proxyAuthed(
   req: NextRequest,
   apiPath: string,
@@ -174,26 +258,73 @@ export async function proxyAuthed(
   cookieName: string,
 ): Promise<NextResponse> {
   const token = req.cookies.get(cookieName)?.value;
-  if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
 
+  // No access token, but possibly a live refresh cookie — the normal state after
+  // an hour away from the tab. Renew rather than reporting "not authenticated".
+  if (!token) {
+    const renewed = await renewSession(req, cookieName);
+    if (!renewed) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+    return proxyAuthedWith(req, apiPath, method, cookieName, renewed.token, renewed);
+  }
+
+  return proxyAuthedWith(req, apiPath, method, cookieName, token, null);
+}
+
+/**
+ * The body of [proxyAuthed], parameterised by which access token to use and
+ * whether cookies still need writing from an earlier renewal.
+ */
+async function proxyAuthedWith(
+  req: NextRequest,
+  apiPath: string,
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+  cookieName: string,
+  token: string,
+  pendingRenewal: Renewal | null,
+): Promise<NextResponse> {
   try {
     const hasBody = method !== "GET" && method !== "DELETE";
+    // Read the body once: a retry below needs it again, and the request stream
+    // cannot be consumed twice.
     const body = hasBody ? await req.json().catch(() => ({})) : undefined;
-    const apiRes = await callApi(apiPath, method, body, token);
+
+    let apiRes = await callApi(apiPath, method, body, token);
+    let renewal = pendingRenewal;
+
+    // Expired mid-session. A 401 means the API did not act on the request, so
+    // replaying it after renewal is safe even for a POST.
+    if (apiRes.status === 401 && !pendingRenewal) {
+      const renewed = await renewSession(req, cookieName);
+      if (renewed) {
+        renewal = renewed;
+        apiRes = await callApi(apiPath, method, body, renewed.token);
+      }
+    }
+
     const data = await readJson(apiRes);
 
     if (apiRes.status === 401) {
+      // Renewal was impossible or itself rejected: the session is genuinely over.
       const res = NextResponse.json(data ?? { message: "Unauthorized" }, { status: 401 });
-      res.cookies.set(cookieName, "", cookieOptions(0));
+      clearSessionCookies(res, cookieName);
       return res;
     }
     if (!apiRes.ok) {
-      return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
+      const res = NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
+      if (renewal) setSessionCookies(res, cookieName, renewal);
+      return res;
     }
     if (apiRes.status === 204 || !data) {
-      return new NextResponse(null, { status: apiRes.status });
+      const res = new NextResponse(null, { status: apiRes.status });
+      if (renewal) setSessionCookies(res, cookieName, renewal);
+      return res;
     }
-    return jsonWithToken(data, cookieName);
+
+    const res = jsonWithToken(data, cookieName);
+    // jsonWithToken only sets cookies when the *body* carried credentials, which
+    // a normal API response doesn't — so a renewal still has to be written here.
+    if (renewal) setSessionCookies(res, cookieName, renewal);
+    return res;
   } catch (reason) {
     return upstreamError(reason);
   }
@@ -278,9 +409,26 @@ export async function proxyAuthedDownload(
   }
 }
 
-/** Clear the auth cookie. */
-export function proxyLogout(cookieName: string): NextResponse {
+/**
+ * Sign out: revoke the refresh token server-side, then clear both cookies.
+ *
+ * Clearing the cookies alone is not enough any more. The refresh token stays
+ * valid at the API for its full 90 days, so a copy taken from the browser (or a
+ * shared machine whose cookie jar was captured) would outlive "log out"
+ * entirely. Revoking is best-effort — a failure there must never leave someone
+ * stuck in a signed-in UI, so the cookies are cleared regardless.
+ */
+export async function proxyLogout(req: NextRequest, cookieName: string): Promise<NextResponse> {
+  const refreshToken = req.cookies.get(refreshCookieFor(cookieName))?.value;
+  if (refreshToken) {
+    try {
+      await callApi("/api/v1/auth/logout", "POST", { refreshToken });
+    } catch {
+      /* local sign-out proceeds regardless */
+    }
+  }
+
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(cookieName, "", cookieOptions(0));
+  clearSessionCookies(res, cookieName);
   return res;
 }
