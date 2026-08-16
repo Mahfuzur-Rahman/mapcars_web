@@ -9,6 +9,7 @@ import {
   type DriverReviewDetail,
   type DriverStatus,
   type DocumentSummary,
+  type VehicleTierAppealResponse,
 } from "@/lib/api";
 import { StatusBadge } from "../page";
 
@@ -33,15 +34,32 @@ export default function AdminDriverDetailPage() {
   const driverId = params.id;
 
   const [driver, setDriver] = useState<DriverReviewDetail | null>(null);
+  const [appeals, setAppeals] = useState<VehicleTierAppealResponse[]>([]);
+  const [selectedTier, setSelectedTier] = useState<string>("economy");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<DocumentSummary | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<{ url: string; title: string } | null>(null);
+
+  // Review modal state
+  const [reviewingAppeal, setReviewingAppeal] = useState<VehicleTierAppealResponse | null>(null);
+  const [appealDecision, setAppealDecision] = useState<"Approved" | "Rejected">("Approved");
+  const [adminNotes, setAdminNotes] = useState("");
 
   const load = useCallback(() => {
     adminDriverReview
       .getDriver(driverId)
-      .then(setDriver)
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load driver"));
+      .then((d: DriverReviewDetail) => {
+        setDriver(d);
+        if (d.vehicle?.tier) setSelectedTier(d.vehicle.tier.toLowerCase());
+      })
+      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Failed to load driver"));
+
+    adminDriverReview
+      .getDriverAppeals(driverId)
+      .then((data: VehicleTierAppealResponse[]) => setAppeals(data))
+      .catch(() => {});
   }, [driverId]);
 
   useEffect(load, [load]);
@@ -72,6 +90,43 @@ export default function AdminDriverDetailPage() {
     }
   }
 
+  async function updateVehicleTier() {
+    if (!driver?.vehicle) return;
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await adminDriverReview.setVehicleTier(driverId, selectedTier);
+      setDriver((prev: DriverReviewDetail | null) => (prev ? { ...prev, vehicle: updated } : null));
+      setSuccess(`Vehicle tier updated to ${selectedTier.toUpperCase()}`);
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to update vehicle tier");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitAppealReview() {
+    if (!reviewingAppeal) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await adminDriverReview.reviewTierAppeal(
+        reviewingAppeal.id,
+        appealDecision,
+        adminNotes.trim() || undefined,
+      );
+      setReviewingAppeal(null);
+      setAdminNotes("");
+      load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to review appeal");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (error && !driver) {
     return (
       <div className="p-8">
@@ -87,9 +142,7 @@ export default function AdminDriverDetailPage() {
     return <div className="p-8 text-sm text-zinc-400">Loading…</div>;
   }
 
-  // Documents the admin hasn't ruled on yet — approving over these is allowed
-  // (the decision is the admin's), but it should never be accidental.
-  const unreviewedDocs = driver.documents.filter((d) => d.reviewStatus === "Pending").length;
+  const unreviewedDocs = driver.documents.filter((d: DocumentSummary) => d.reviewStatus === "Pending").length;
 
   return (
     <div className="p-8">
@@ -113,6 +166,12 @@ export default function AdminDriverDetailPage() {
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {success}
         </div>
       )}
 
@@ -148,9 +207,13 @@ export default function AdminDriverDetailPage() {
             <Field label="No-shows" value={String(driver.noShowCount)} />
           </Card>
 
-          <Card title="Vehicle">
+          <Card title="Vehicle & Tier Management">
             {driver.vehicle ? (
-              <>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                  <span className="text-sm text-zinc-500">Current Tier</span>
+                  <TierBadge tier={driver.vehicle.tier || "economy"} />
+                </div>
                 <Field
                   label="Vehicle"
                   value={`${driver.vehicle.make} ${driver.vehicle.model} (${driver.vehicle.year})`}
@@ -159,21 +222,48 @@ export default function AdminDriverDetailPage() {
                 <Field label="Registration" value={driver.vehicle.registrationNumber} />
                 <Field label="PHV plate no." value={driver.vehicle.phvLicencePlateNumber} />
                 <Field label="Licensing authority" value={driver.vehicle.phvLicensingAuthority} />
-              </>
+
+                {/* Admin Direct Tier Change */}
+                <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
+                    Set Tier Override
+                  </label>
+                  <div className="mt-2 flex items-center gap-2">
+                    <select
+                      value={selectedTier}
+                      onChange={(e) => setSelectedTier(e.target.value)}
+                      disabled={busy}
+                      className="flex-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="economy">Economy (1.0x)</option>
+                      <option value="comfort">Comfort (1.35x)</option>
+                      <option value="xl">XL (1.7x)</option>
+                      <option value="premium">Premium (2.1x)</option>
+                    </select>
+                    <button
+                      onClick={updateVehicleTier}
+                      disabled={busy || selectedTier === (driver.vehicle.tier || "economy").toLowerCase()}
+                      className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-40"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : (
               <p className="text-sm text-zinc-400">No vehicle registered yet.</p>
             )}
           </Card>
         </div>
 
-        {/* Right: documents (spans two columns) */}
-        <div className="lg:col-span-2">
+        {/* Right: documents & appeals */}
+        <div className="space-y-5 lg:col-span-2">
           <Card title="Documents">
             {driver.documents.length === 0 ? (
               <p className="text-sm text-zinc-400">No documents uploaded yet.</p>
             ) : (
               <ul className="divide-y divide-zinc-100">
-                {driver.documents.map((doc) => (
+                {driver.documents.map((doc: DocumentSummary) => (
                   <li key={doc.id} className="flex items-center gap-3 py-3">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-zinc-900">
@@ -209,8 +299,103 @@ export default function AdminDriverDetailPage() {
             )}
           </Card>
 
-          {/* Driver decision */}
-          <div className="mt-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          {/* Tier Appeals History */}
+          <Card title="Vehicle Tier Appeals">
+            {appeals.length === 0 ? (
+              <p className="text-sm text-zinc-400">No tier appeals submitted by this driver.</p>
+            ) : (
+              <div className="space-y-3">
+                {appeals.map((appeal) => (
+                  <div
+                    key={appeal.id}
+                    className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <TierBadge tier={appeal.currentTier} />
+                        <span className="text-xs text-zinc-400">→</span>
+                        <TierBadge tier={appeal.requestedTier} />
+                        <span className="text-xs text-zinc-400">
+                          {new Date(appeal.createdAtUtc).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <ReviewBadge status={appeal.status} />
+                    </div>
+
+                    <div className="mt-2 text-sm text-zinc-700">
+                      <span className="font-semibold text-zinc-900">Driver Reason: </span>
+                      {appeal.reason}
+                    </div>
+
+                    {appeal.photoUrls && appeal.photoUrls.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {appeal.photoUrls.map((_, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() =>
+                              setPhotoPreview({
+                                url: adminDriverReview.appealPhotoUrl(appeal.id, idx),
+                                title: `Car Photo ${idx + 1} (${appeal.requestedTier.toUpperCase()})`,
+                              })
+                            }
+                            className="group relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 hover:opacity-90"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={adminDriverReview.appealPhotoUrl(appeal.id, idx)}
+                              alt="Car photo"
+                              className="h-full w-full object-cover"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover:opacity-100">
+                              <span className="text-[10px] font-bold text-white">View</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {appeal.adminNotes && (
+                      <p className="mt-2 rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
+                        <span className="font-semibold text-zinc-800">Admin Note: </span>
+                        {appeal.adminNotes}
+                      </p>
+                    )}
+
+                    {appeal.status === "Pending" && (
+                      <div className="mt-3 flex items-center gap-2 border-t border-zinc-100 pt-3">
+                        <button
+                          onClick={() => {
+                            setReviewingAppeal(appeal);
+                            setAppealDecision("Approved");
+                            setAdminNotes("");
+                          }}
+                          disabled={busy}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                        >
+                          Approve Appeal
+                        </button>
+                        <button
+                          onClick={() => {
+                            setReviewingAppeal(appeal);
+                            setAppealDecision("Rejected");
+                            setAdminNotes("");
+                          }}
+                          disabled={busy}
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-40"
+                        >
+                          Reject Appeal
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Driver overall decision */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-zinc-700">Driver status</p>
             <p className="mt-1 text-xs text-zinc-500">
               Only an <span className="font-semibold text-zinc-700">approved</span> driver can go
@@ -232,33 +417,145 @@ export default function AdminDriverDetailPage() {
             )}
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setStatus("Approved")}
-              disabled={busy || driver.status === "Approved" || !driver.hasProfilePicture}
-              className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-            >
-              Approve driver
-            </button>
-            <button
-              onClick={() => setStatus("Suspended")}
-              disabled={busy || driver.status === "Suspended"}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-40"
-            >
-              Suspend
-            </button>
-            <button
-              onClick={() => setStatus("Rejected")}
-              disabled={busy || driver.status === "Rejected"}
-              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-40"
-            >
-              Reject
-            </button>
+              <button
+                onClick={() => setStatus("Approved")}
+                disabled={busy || driver.status === "Approved" || !driver.hasProfilePicture}
+                className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+              >
+                Approve driver
+              </button>
+              <button
+                onClick={() => setStatus("Suspended")}
+                disabled={busy || driver.status === "Suspended"}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-40"
+              >
+                Suspend
+              </button>
+              <button
+                onClick={() => setStatus("Rejected")}
+                disabled={busy || driver.status === "Rejected"}
+                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-40"
+              >
+                Reject
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {preview && <DocumentPreview doc={preview} onClose={() => setPreview(null)} />}
+
+      {photoPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+          onClick={() => setPhotoPreview(null)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
+              <p className="text-sm font-semibold text-zinc-900">{photoPreview.title}</p>
+              <button onClick={() => setPhotoPreview(null)} className="text-zinc-400 hover:text-zinc-700">
+                ✕
+              </button>
+            </div>
+            <div className="flex items-center justify-center bg-zinc-950 p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoPreview.url}
+                alt={photoPreview.title}
+                className="max-h-[70vh] max-w-full rounded-lg object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Appeal Review Modal */}
+      {reviewingAppeal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setReviewingAppeal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-zinc-900">
+              {appealDecision} Tier Appeal
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Requested: {reviewingAppeal.currentTier.toUpperCase()} → {reviewingAppeal.requestedTier.toUpperCase()}
+            </p>
+
+            <div className="mt-4">
+              <label className="block text-xs font-semibold text-zinc-700">
+                Decision
+              </label>
+              <div className="mt-1 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAppealDecision("Approved")}
+                  className={`flex-1 rounded-lg py-2 text-xs font-bold transition ${
+                    appealDecision === "Approved"
+                      ? "bg-green-600 text-white"
+                      : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Approve (Upgrade to {reviewingAppeal.requestedTier.toUpperCase()})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAppealDecision("Rejected")}
+                  className={`flex-1 rounded-lg py-2 text-xs font-bold transition ${
+                    appealDecision === "Rejected"
+                      ? "bg-red-600 text-white"
+                      : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-xs font-semibold text-zinc-700">
+                Admin Notes (sent to driver via email & push)
+              </label>
+              <textarea
+                rows={3}
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                placeholder="Optional feedback or rationale for the driver..."
+                className="mt-1 w-full rounded-lg border border-zinc-300 p-2.5 text-xs text-zinc-900 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setReviewingAppeal(null)}
+                className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitAppealReview}
+                disabled={busy}
+                className={`rounded-lg px-4 py-2 text-xs font-bold text-white transition ${
+                  appealDecision === "Approved"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
+                } disabled:opacity-40`}
+              >
+                {busy ? "Saving..." : `Confirm ${appealDecision}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -289,11 +586,24 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-// Reference timestamp for expiry comparisons, read once at module load (not
-// during render) — components must be pure, and Date.now() is non-deterministic.
+export function TierBadge({ tier }: { tier: string }) {
+  const t = (tier || "economy").toLowerCase();
+  const styles: Record<string, { bg: string; text: string; label: string }> = {
+    economy: { bg: "bg-slate-100", text: "text-slate-800", label: "Economy" },
+    comfort: { bg: "bg-blue-50", text: "text-blue-700", label: "Comfort" },
+    xl: { bg: "bg-emerald-50", text: "text-emerald-700", label: "XL" },
+    premium: { bg: "bg-amber-50", text: "text-amber-700", label: "Premium" },
+  };
+  const conf = styles[t] ?? { bg: "bg-zinc-100", text: "text-zinc-700", label: tier };
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${conf.bg} ${conf.text}`}>
+      {conf.label}
+    </span>
+  );
+}
+
 const NOW_MS = Date.now();
 
-// Client-side only — compares expiresOn to today, no server round-trip needed.
 function ExpiryBadge({ expiresOn }: { expiresOn?: string }) {
   if (!expiresOn) return null;
   const msPerDay = 1000 * 60 * 60 * 24;

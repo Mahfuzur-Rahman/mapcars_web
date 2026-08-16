@@ -656,6 +656,7 @@ export interface VehicleResponse {
   registrationNumber: string;
   phvLicencePlateNumber?: string;
   phvLicensingAuthority?: string;
+  tier: string;
   createdAtUtc: string;
   updatedAtUtc?: string;
 }
@@ -685,6 +686,39 @@ export interface DriverReviewDetail {
   isOnline: boolean;
 }
 
+export interface VehicleTierAppealResponse {
+  id: string;
+  driverId: string;
+  vehicleId: string;
+  currentTier: string;
+  requestedTier: string;
+  reason: string;
+  photoUrls: string[];
+  status: "Pending" | "Approved" | "Rejected";
+  adminNotes?: string;
+  reviewedAtUtc?: string;
+  createdAtUtc: string;
+}
+
+export interface TierAppealListItem {
+  id: string;
+  driverId: string;
+  driverName?: string;
+  driverEmail?: string;
+  driverPhone?: string;
+  vehicleId: string;
+  vehicleDescription: string;
+  registrationNumber: string;
+  currentTier: string;
+  requestedTier: string;
+  reason: string;
+  photoCount: number;
+  status: "Pending" | "Approved" | "Rejected";
+  adminNotes?: string;
+  reviewedAtUtc?: string;
+  createdAtUtc: string;
+}
+
 export const adminDriverReview = {
   listDrivers: (status?: DriverStatus) =>
     bff<DriverReviewListItem[]>(
@@ -708,6 +742,36 @@ export const adminDriverReview = {
       `/admin/driver-review/drivers/${driverId}/status`,
       { status },
     ),
+
+  setVehicleTier: (driverId: string, tier: string) =>
+    bff<VehicleResponse>(
+      "PUT",
+      `/admin/driver-review/drivers/${driverId}/tier`,
+      { tier },
+    ),
+
+  getDriverAppeals: (driverId: string) =>
+    bff<VehicleTierAppealResponse[]>(
+      "GET",
+      `/admin/driver-review/drivers/${driverId}/appeals`,
+    ),
+
+  listTierAppeals: (status?: "Pending" | "Approved" | "Rejected") =>
+    bff<TierAppealListItem[]>(
+      "GET",
+      `/admin/driver-review/tier-appeals${status ? `?status=${status}` : ""}`,
+    ),
+
+  reviewTierAppeal: (appealId: string, status: "Approved" | "Rejected", adminNotes?: string) =>
+    bff<VehicleTierAppealResponse>(
+      "PUT",
+      `/admin/driver-review/tier-appeals/${appealId}/review`,
+      { status, adminNotes },
+    ),
+
+  /** Same-origin URL that streams an appeal's photo bytes. */
+  appealPhotoUrl: (appealId: string, photoIndex: number) =>
+    `/api/bff/admin/driver-review/tier-appeals/${appealId}/photos/${photoIndex}/content`,
 
   /** Same-origin URL that streams a document's bytes (use as <img src> / <iframe src>). */
   documentContentUrl: (documentId: string) =>
