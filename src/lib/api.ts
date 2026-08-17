@@ -719,11 +719,34 @@ export interface TierAppealListItem {
   createdAtUtc: string;
 }
 
+export interface DriverDocumentListItem {
+  id: string;
+  driverId: string;
+  driverName?: string;
+  driverEmail?: string;
+  driverPhone?: string;
+  driverStatus: string;
+  type: string;
+  storageKey: string;
+  originalFileName: string;
+  contentType: string;
+  reviewStatus: "Pending" | "Approved" | "Rejected";
+  reviewedAtUtc?: string;
+  expiresOn?: string;
+  createdAtUtc: string;
+}
+
 export const adminDriverReview = {
   listDrivers: (status?: DriverStatus) =>
     bff<DriverReviewListItem[]>(
       "GET",
       `/admin/driver-review/drivers${status ? `?status=${status}` : ""}`,
+    ),
+
+  listDocuments: (status?: "Pending" | "Approved" | "Rejected") =>
+    bff<DriverDocumentListItem[]>(
+      "GET",
+      `/admin/driver-review/documents${status ? `?status=${status}` : ""}`,
     ),
 
   getDriver: (driverId: string) =>
