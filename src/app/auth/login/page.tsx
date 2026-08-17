@@ -281,8 +281,7 @@ export default function LoginPage() {
 
           <GoogleAuthButton onError={setError} intent="signin" />
           <p className="auth-hint auth-social-hint">
-            Google sign-in is for rider accounts — drivers and admins should use the
-            Email tab.
+            Google sign-in works for both Customer and Driver Partner accounts.
           </p>
         </>
       )}

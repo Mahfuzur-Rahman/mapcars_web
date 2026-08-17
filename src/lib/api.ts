@@ -198,6 +198,10 @@ export const unifiedAuth = {
   /** `loginAs` is only needed on a second call, after the first came back with `requiresChoice`. */
   login: (email: string, password: string, loginAs?: "rider" | "driver") =>
     bff<UnifiedSession>("POST", "/auth/login", { email, password, loginAs }),
+
+  /** Google sign-in for the unified web login endpoint (detects rider vs driver). */
+  google: (idToken: string, signUp = false, loginAs?: "rider" | "driver") =>
+    bff<UnifiedSession>("POST", "/auth/google", { idToken, signUp, loginAs }),
 };
 
 // ── Admin auth  (BFF: /api/bff/admin/*) ──────────────────────────────────────
@@ -560,6 +564,9 @@ export interface DocumentSummary {
   // Required by the API for expiring types (PhvLicence, VehicleInsurance,
   // VehicleRegistration, DbsCheck); absent for the rest.
   expiresOn?: string;
+  isDeletionRequested?: boolean;
+  deletionReason?: string;
+  deletionRequestedAtUtc?: string;
 }
 
 async function uploadDocument(
@@ -589,12 +596,20 @@ export const riderDocuments = {
   upload: (type: RiderDocumentType, file: File, expiresOn?: string) =>
     uploadDocument("/rider/documents", type, file, expiresOn),
   list: () => bff<DocumentSummary[]>("GET", "/rider/documents"),
+  requestDeletion: (documentId: string, reason?: string) =>
+    bff<DocumentSummary>("POST", `/rider/documents/${documentId}/request-deletion`, { reason }),
+  contentUrl: (documentId: string) =>
+    `/api/bff/rider/documents/${documentId}/content`,
 };
 
 export const driverDocuments = {
   upload: (type: DriverDocumentType, file: File, expiresOn?: string) =>
     uploadDocument("/driver/documents", type, file, expiresOn),
   list: () => bff<DocumentSummary[]>("GET", "/driver/documents"),
+  requestDeletion: (documentId: string, reason?: string) =>
+    bff<DocumentSummary>("POST", `/driver/documents/${documentId}/request-deletion`, { reason }),
+  contentUrl: (documentId: string) =>
+    `/api/bff/driver/documents/${documentId}/content`,
 };
 
 // ── Driver payouts  (BFF: /api/bff/driver/{payout-account,payouts}) ──────────
@@ -757,6 +772,19 @@ export const adminDriverReview = {
       "PUT",
       `/admin/driver-review/documents/${documentId}/review`,
       { status },
+    ),
+
+  reviewDocumentDeletion: (documentId: string, status: "Approved" | "Rejected") =>
+    bff<DocumentSummary>(
+      "PUT",
+      `/admin/driver-review/documents/${documentId}/deletion-review`,
+      { status },
+    ),
+
+  listDocumentDeletions: () =>
+    bff<DriverDocumentListItem[]>(
+      "GET",
+      "/admin/driver-review/document-deletions",
     ),
 
   setDriverStatus: (driverId: string, status: DriverStatus) =>

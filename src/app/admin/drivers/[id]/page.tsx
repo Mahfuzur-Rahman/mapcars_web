@@ -77,6 +77,22 @@ export default function AdminDriverDetailPage() {
     }
   }
 
+  async function reviewDeletion(doc: DocumentSummary, status: "Approved" | "Rejected") {
+    if (status === "Approved" && !confirm(`Are you sure you want to permanently delete "${DOC_LABELS[doc.type] ?? doc.type}" (${doc.originalFileName})?`)) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await adminDriverReview.reviewDocumentDeletion(doc.id, status);
+      load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to process deletion review");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function setStatus(status: DriverStatus) {
     setBusy(true);
     setError(null);
@@ -264,35 +280,68 @@ export default function AdminDriverDetailPage() {
             ) : (
               <ul className="divide-y divide-zinc-100">
                 {driver.documents.map((doc: DocumentSummary) => (
-                  <li key={doc.id} className="flex items-center gap-3 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-zinc-900">
-                        {DOC_LABELS[doc.type] ?? doc.type}
-                      </p>
-                      <p className="truncate text-xs text-zinc-500">{doc.originalFileName}</p>
+                  <li key={doc.id} className="py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-zinc-900">
+                          {DOC_LABELS[doc.type] ?? doc.type}
+                        </p>
+                        <p className="truncate text-xs text-zinc-500">{doc.originalFileName}</p>
+                      </div>
+                      <ExpiryBadge expiresOn={doc.expiresOn} />
+                      <ReviewBadge status={doc.reviewStatus} />
+                      <button
+                        onClick={() => setPreview(doc)}
+                        className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => reviewDoc(doc, "Approved")}
+                        disabled={busy || doc.reviewStatus === "Approved"}
+                        className="rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => reviewDoc(doc, "Rejected")}
+                        disabled={busy || doc.reviewStatus === "Rejected"}
+                        className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-40"
+                      >
+                        Reject
+                      </button>
                     </div>
-                    <ExpiryBadge expiresOn={doc.expiresOn} />
-                    <ReviewBadge status={doc.reviewStatus} />
-                    <button
-                      onClick={() => setPreview(doc)}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => reviewDoc(doc, "Approved")}
-                      disabled={busy || doc.reviewStatus === "Approved"}
-                      className="rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => reviewDoc(doc, "Rejected")}
-                      disabled={busy || doc.reviewStatus === "Rejected"}
-                      className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-40"
-                    >
-                      Reject
-                    </button>
+
+                    {/* Deletion Request Highlight */}
+                    {doc.isDeletionRequested && (
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-red-800">Deletion Requested by Driver</span>
+                          {doc.deletionReason && (
+                            <p className="text-red-700 mt-0.5">
+                              <span className="font-semibold">Reason: </span>
+                              {doc.deletionReason}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => reviewDeletion(doc, "Approved")}
+                            disabled={busy}
+                            className="rounded-lg bg-red-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-40"
+                          >
+                            Approve Deletion (Delete)
+                          </button>
+                          <button
+                            onClick={() => reviewDeletion(doc, "Rejected")}
+                            disabled={busy}
+                            className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-40"
+                          >
+                            Reject Request
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

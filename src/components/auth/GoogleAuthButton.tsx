@@ -1,18 +1,16 @@
 "use client";
 
-// "Continue with Google" for the rider (customer) web flow.
+// "Continue with Google" for the unified Mapcars web sign-in flow.
 //
 // When `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set we hand off to Google Identity
 // Services, which renders its own official button and gives us an ID token; we
-// post that to `/api/bff/rider/google` → `POST /api/v1/auth/riders/google`,
-// which upserts the rider and sets the httpOnly session cookie.
-//
-// When it is NOT set (today) the button still renders — clicking it says so
-// plainly instead of failing silently. Nothing else on the page changes.
+// post that to `/api/bff/auth/google` → `POST /api/v1/auth/google`,
+// which detects Driver vs Rider accounts, sets the appropriate httpOnly cookie,
+// and routes the user to /driver or /account.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { riderAuth, ApiError } from "@/lib/api";
+import { unifiedAuth, ApiError, type UnifiedSession } from "@/lib/api";
 import { env } from "@/lib/env";
 
 const GSI_SRC = "https://accounts.google.com/gsi/client";
@@ -85,17 +83,41 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
   const slotRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [rendered, setRendered] = useState(false);
+  const [choosingRole, setChoosingRole] = useState(false);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
   const clientId = env.googleClientId;
 
+  const navigateSession = useCallback(
+    (session: UnifiedSession) => {
+      switch (session.userType) {
+        case "admin":
+          router.push("/admin");
+          break;
+        case "driver":
+          router.push("/driver");
+          break;
+        default:
+          router.push(session.isProfileComplete ? "/account" : "/auth/profile");
+      }
+      router.refresh();
+    },
+    [router],
+  );
+
   const signIn = useCallback(
-    async (idToken: string) => {
+    async (idToken: string, loginAs?: "rider" | "driver") => {
       setBusy(true);
       onError("");
       try {
-        // Only the create-account page may bring a new rider into existence.
-        const session = await riderAuth.google(idToken, intent === "signup");
-        router.push(session.isProfileComplete ? "/account" : "/auth/profile");
-        router.refresh();
+        const session = await unifiedAuth.google(idToken, intent === "signup", loginAs);
+        if (session.requiresChoice) {
+          setPendingToken(idToken);
+          setChoosingRole(true);
+          return;
+        }
+        setChoosingRole(false);
+        setPendingToken(null);
+        navigateSession(session);
       } catch (err) {
         onError(
           err instanceof ApiError
@@ -106,7 +128,7 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
         setBusy(false);
       }
     },
-    [intent, onError, router],
+    [intent, navigateSession, onError],
   );
 
   useEffect(() => {
@@ -161,32 +183,74 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
   const label = intent === "signup" ? "Sign up with Google" : "Continue with Google";
 
   return (
-    <div className="auth-social">
-      <div className="auth-or">
-        <span>or</span>
+    <>
+      <div className="auth-social">
+        <div className="auth-or">
+          <span>or</span>
+        </div>
+
+        {/* Google renders its official button in here once GIS has loaded. */}
+        <div ref={slotRef} className="auth-google-slot" aria-live="polite" />
+
+        {/* Shown until GIS renders — and permanently while no client ID is set. */}
+        {!rendered && (
+          <button
+            type="button"
+            className="auth-google"
+            disabled={busy}
+            onClick={() =>
+              onError(
+                clientId
+                  ? "Google sign-in is still loading — please try again in a moment."
+                  : "Google sign-in isn't set up yet. Please use email or phone for now.",
+              )
+            }
+          >
+            <GoogleMark />
+            <span>{label}</span>
+          </button>
+        )}
       </div>
 
-      {/* Google renders its official button in here once GIS has loaded. */}
-      <div ref={slotRef} className="auth-google-slot" aria-live="polite" />
-
-      {/* Shown until GIS renders — and permanently while no client ID is set. */}
-      {!rendered && (
-        <button
-          type="button"
-          className="auth-google"
-          disabled={busy}
-          onClick={() =>
-            onError(
-              clientId
-                ? "Google sign-in is still loading — please try again in a moment."
-                : "Google sign-in isn't set up yet. Please use email or phone for now.",
-            )
-          }
-        >
-          <GoogleMark />
-          <span>{label}</span>
-        </button>
+      {/* Role disambiguation modal for Google auth */}
+      {choosingRole && pendingToken && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-zinc-900">Choose account type</h3>
+            <p className="mt-1 text-sm text-zinc-500">
+              This Google account is registered as both a Customer and a Driver. Which account would you like to sign into?
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void signIn(pendingToken, "driver")}
+                className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-bold text-white shadow transition hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Sign in as Driver Partner
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void signIn(pendingToken, "rider")}
+                className="w-full rounded-xl border border-zinc-200 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Sign in as Customer (Rider)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChoosingRole(false);
+                  setPendingToken(null);
+                }}
+                className="mt-2 text-center text-xs font-semibold text-zinc-400 hover:text-zinc-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }
