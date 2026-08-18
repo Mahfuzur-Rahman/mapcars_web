@@ -8,6 +8,9 @@ import {
   type TripStatusName,
 } from "@/lib/api";
 
+import { ReceiptModal } from "@/components/receipt/ReceiptModal";
+import { Icon } from "@/components/ui/Icon";
+
 const FILTERS: { label: string; value: TripStatusName | "All" }[] = [
   { label: "All", value: "All" },
   { label: "Requested", value: "Requested" },
@@ -28,6 +31,7 @@ export default function AdminTripHistoryPage() {
   const [filter, setFilter] = useState<TripStatusName | "All">("All");
   const [trips, setTrips] = useState<AdminTripListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTrip, setSelectedTrip] = useState<AdminTripListItem | null>(null);
   // Which filter the loaded `trips` belong to — when it lags `filter` we're
   // (re)loading. Derived loading avoids a synchronous setState in the effect.
   const [loadedFilter, setLoadedFilter] = useState<TripStatusName | "All" | null>(null);
@@ -93,12 +97,13 @@ export default function AdminTripHistoryPage() {
               <th className="px-5 py-3">Fare</th>
               <th className="px-5 py-3">Payment</th>
               <th className="px-5 py-3">When</th>
+              <th className="px-5 py-3 text-right">Receipt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {!loading &&
               trips?.map((t) => (
-              <tr key={t.id} className="hover:bg-zinc-50">
+              <tr key={t.id} className="hover:bg-zinc-50 transition">
                 <td className="px-5 py-3 font-medium text-zinc-900">
                   {t.riderName || <span className="text-zinc-400">—</span>}
                 </td>
@@ -116,7 +121,7 @@ export default function AdminTripHistoryPage() {
                 <td className="px-5 py-3">
                   <TripStatusBadge status={t.status} />
                 </td>
-                <td className="px-5 py-3 tabular-nums text-zinc-900">
+                <td className="px-5 py-3 tabular-nums font-medium text-zinc-900">
                   {gbp(t.fareAmount)}
                   {t.tipAmount > 0 && (
                     <span className="ml-1 text-xs text-green-600">+{gbp(t.tipAmount)} tip</span>
@@ -140,18 +145,32 @@ export default function AdminTripHistoryPage() {
                     minute: "2-digit",
                   })}
                 </td>
+                <td className="px-5 py-3 text-right">
+                  {t.status === "Completed" ? (
+                    <button
+                      onClick={() => setSelectedTrip(t)}
+                      type="button"
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition"
+                    >
+                      <Icon name="receipt" className="h-3.5 w-3.5" />
+                      Receipt
+                    </button>
+                  ) : (
+                    <span className="text-xs text-zinc-400">—</span>
+                  )}
+                </td>
               </tr>
             ))}
             {!loading && trips && trips.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-zinc-400">
+                <td colSpan={8} className="px-5 py-8 text-center text-zinc-400">
                   No trips in this category.
                 </td>
               </tr>
             )}
             {loading && (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-zinc-400">
+                <td colSpan={8} className="px-5 py-8 text-center text-zinc-400">
                   Loading…
                 </td>
               </tr>
@@ -159,6 +178,14 @@ export default function AdminTripHistoryPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Branded Official Receipt Modal */}
+      <ReceiptModal
+        trip={selectedTrip}
+        isOpen={selectedTrip !== null}
+        onClose={() => setSelectedTrip(null)}
+        userType="admin"
+      />
     </div>
   );
 }

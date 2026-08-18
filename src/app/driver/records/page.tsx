@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { driverTrips, ApiError, type DriverTripSummary } from "@/lib/api";
+import { ReceiptModal } from "@/components/receipt/ReceiptModal";
+import { Icon } from "@/components/ui/Icon";
 
 const STATUS_LABEL: Record<string, string> = {
   Requested: "Requested",
@@ -16,6 +18,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function DriverRecordsPage() {
   const [trips, setTrips] = useState<DriverTripSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTrip, setSelectedTrip] = useState<DriverTripSummary | null>(null);
 
   useEffect(() => {
     driverTrips
@@ -57,11 +60,12 @@ export default function DriverRecordsPage() {
                 <th className="px-4 py-3">Fare</th>
                 <th className="px-4 py-3">Tip</th>
                 <th className="px-4 py-3">Your earnings</th>
+                <th className="px-4 py-3 text-right">Receipt</th>
               </tr>
             </thead>
             <tbody>
               {trips.map((t) => (
-                <tr key={t.id} className="border-b border-zinc-50 last:border-0">
+                <tr key={t.id} className="border-b border-zinc-50 last:border-0 hover:bg-slate-50/50 transition">
                   <td className="px-4 py-3 text-zinc-500">
                     {new Date(t.createdAtUtc).toLocaleDateString()}
                   </td>
@@ -77,12 +81,34 @@ export default function DriverRecordsPage() {
                   <td className="px-4 py-3 font-medium text-emerald-700">
                     {t.driverEarnings != null ? `£${t.driverEarnings.toFixed(2)}` : "—"}
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    {t.status === "Completed" ? (
+                      <button
+                        onClick={() => setSelectedTrip(t)}
+                        type="button"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition"
+                      >
+                        <Icon name="receipt" className="h-3.5 w-3.5" />
+                        Receipt
+                      </button>
+                    ) : (
+                      <span className="text-xs text-zinc-400">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* Branded Official Receipt Modal */}
+      <ReceiptModal
+        trip={selectedTrip}
+        isOpen={selectedTrip !== null}
+        onClose={() => setSelectedTrip(null)}
+        userType="driver"
+      />
     </div>
   );
 }

@@ -112,3 +112,37 @@ h6 {
   box-shadow: var(--shadow-glow-brand);
   transform: translateY(-1px);
 }
+
+/* Print styling for crisp PDF receipts */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt-printable,
+  .receipt-printable * {
+    visibility: visible;
+  }
+
+  .receipt-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
