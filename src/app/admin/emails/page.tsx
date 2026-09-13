@@ -286,7 +286,7 @@ function DetailView({ entry, onClose }: { entry: EmailLogDetail; onClose: () => 
         </div>
       )}
 
-      {/* Always our own backend copy or an admin's own Compose input — never rider/driver content. */}
+      {/* Always our own backend copy or an admin's own Compose input — never customer/driver content. */}
       <div
         className="rounded-xl border border-line bg-slate-50/50 px-4 py-3.5 text-sm text-ink"
         dangerouslySetInnerHTML={{ __html: entry.bodyHtml }}

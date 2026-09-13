@@ -98,7 +98,7 @@ export default function AdminLiveMapPage() {
           position: { lat: t.pickupLat, lng: t.pickupLng },
           map: mapObj.current,
           icon: dot(STATUS_COLOR[t.status] ?? "#2563eb", 7),
-          title: `${t.riderName ?? "Rider"} → ${t.dropoffAddress} (${t.status})`,
+          title: `${t.customerName ?? "Customer"} → ${t.dropoffAddress} (${t.status})`,
         }),
       );
     }
@@ -197,7 +197,7 @@ function NoKeyFallback({ live }: { live: AdminLive | null }) {
             <ul className="divide-y divide-zinc-100">
               {live.activeTrips.map((t) => (
                 <li key={t.id} className="py-2 text-sm">
-                  <span className="font-medium text-zinc-900">{t.riderName ?? "Rider"}</span>
+                  <span className="font-medium text-zinc-900">{t.customerName ?? "Customer"}</span>
                   <span className="text-zinc-400"> → </span>
                   <span className="text-zinc-700">{t.dropoffAddress}</span>
                   <span className="ml-2 text-xs text-zinc-400">{t.status}</span>

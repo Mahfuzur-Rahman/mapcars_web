@@ -18,7 +18,10 @@ const FILTERS: { label: string; value: TripStatusName | "All" }[] = [
   { label: "Arrived", value: "DriverArrived" },
   { label: "In progress", value: "InProgress" },
   { label: "Completed", value: "Completed" },
-  { label: "Cancelled (rider)", value: "CancelledByRider" },
+  // Sends the value the API stores TODAY. Do not switch this to
+  // CancelledByCustomer before migration 031 lands, or the filter silently
+  // matches nothing. The badge maps below already handle both.
+  { label: "Cancelled (customer)", value: "CancelledByRider" },
   { label: "Cancelled (driver)", value: "CancelledByDriver" },
   { label: "Expired", value: "Expired" },
 ];
@@ -91,7 +94,7 @@ export default function AdminTripHistoryPage() {
         <table className="w-full min-w-[900px] text-sm">
           <thead className="border-b border-zinc-100 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">
             <tr>
-              <th className="px-5 py-3">Rider</th>
+              <th className="px-5 py-3">Customer</th>
               <th className="px-5 py-3">Driver</th>
               <th className="px-5 py-3">Route</th>
               <th className="px-5 py-3">Status</th>
@@ -106,7 +109,7 @@ export default function AdminTripHistoryPage() {
               trips?.map((t) => (
               <tr key={t.id} className="hover:bg-zinc-50 transition">
                 <td className="px-5 py-3 font-medium text-zinc-900">
-                  {t.riderName || <span className="text-zinc-400">—</span>}
+                  {t.customerName || <span className="text-zinc-400">—</span>}
                 </td>
                 <td className="px-5 py-3 text-zinc-600">
                   {t.driverName || <span className="text-zinc-400">Unassigned</span>}
@@ -203,6 +206,7 @@ function TripStatusBadge({ status }: { status: TripStatusName }) {
     InProgress: "bg-amber-50 text-amber-700",
     Completed: "bg-green-50 text-green-700",
     CancelledByRider: "bg-red-50 text-red-700",
+    CancelledByCustomer: "bg-red-50 text-red-700",
     CancelledByDriver: "bg-red-50 text-red-700",
     // Amber, not red: nobody did anything wrong here — the request simply found
     // no driver, which is a supply signal rather than a cancellation.
@@ -214,7 +218,8 @@ function TripStatusBadge({ status }: { status: TripStatusName }) {
     DriverArrived: "Arrived",
     InProgress: "In progress",
     Completed: "Completed",
-    CancelledByRider: "Cancelled (rider)",
+    CancelledByRider: "Cancelled (customer)",
+    CancelledByCustomer: "Cancelled (customer)",
     CancelledByDriver: "Cancelled (driver)",
     Expired: "Expired (no driver)",
   };

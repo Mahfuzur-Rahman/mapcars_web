@@ -50,7 +50,7 @@ export default function AdminDashboard() {
   const active = stats?.activeTrips ?? 0;
 
   const tiles: Tile[] = [
-    { label: "Total riders", value: num(stats?.totalRiders), icon: "users" },
+    { label: "Total customers", value: num(stats?.totalCustomers), icon: "users" },
     { label: "Total drivers", value: num(stats?.totalDrivers), icon: "car" },
     {
       label: "Online drivers",
@@ -91,7 +91,7 @@ export default function AdminDashboard() {
     <Page>
       <PageHeader
         title="Dashboard"
-        subtitle="Platform activity across riders, drivers and trips"
+        subtitle="Platform activity across customers, drivers and trips"
       />
 
       {error && <ErrorBanner message={error} onRetry={load} />}
@@ -114,9 +114,9 @@ export default function AdminDashboard() {
         <SectionTitle>Jump to</SectionTitle>
         <QuickLinks>
           <QuickLink
-            href="/admin/riders"
-            label="Manage riders"
-            description="Browse rider accounts"
+            href="/admin/customers"
+            label="Manage customers"
+            description="Browse customer accounts"
             icon="users"
           />
           <QuickLink

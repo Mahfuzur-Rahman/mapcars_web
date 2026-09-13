@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { riderAuth, ApiError } from "@/lib/api";
+import { customerAuth, ApiError } from "@/lib/api";
 
 export default function ProfileSetupPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function ProfileSetupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Access is guarded server-side by proxy.ts (requires a rider session cookie).
+  // Access is guarded server-side by proxy.ts (requires a customer session cookie).
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +23,7 @@ export default function ProfileSetupPage() {
     setLoading(true);
     setError(null);
     try {
-      await riderAuth.updateProfile(fullName.trim(), {
+      await customerAuth.updateProfile(fullName.trim(), {
         email: email.trim() || undefined,
         emergencyContactName: emergencyContactName.trim() || undefined,
         emergencyContactPhone: emergencyContactPhone.trim() || undefined,

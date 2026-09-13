@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { riderAuth, ApiError, type RiderProfileResponse } from "@/lib/api";
+import { customerAuth, ApiError, type CustomerProfileResponse } from "@/lib/api";
 
 export default function AccountProfilePage() {
-  const [profile, setProfile] = useState<RiderProfileResponse | null>(null);
+  const [profile, setProfile] = useState<CustomerProfileResponse | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [emergencyContactName, setEmergencyContactName] = useState("");
@@ -17,7 +17,7 @@ export default function AccountProfilePage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    riderAuth
+    customerAuth
       .getProfile()
       .then((p) => {
         setProfile(p);
@@ -38,7 +38,7 @@ export default function AccountProfilePage() {
     setError(null);
     setSaved(false);
     try {
-      const updated = await riderAuth.updateProfile(fullName.trim(), {
+      const updated = await customerAuth.updateProfile(fullName.trim(), {
         email: email.trim() || undefined,
         emergencyContactName: emergencyContactName.trim() || undefined,
         emergencyContactPhone: emergencyContactPhone.trim() || undefined,

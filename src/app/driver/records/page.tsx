@@ -11,7 +11,8 @@ const STATUS_LABEL: Record<string, string> = {
   DriverArrived: "Arrived",
   InProgress: "In progress",
   Completed: "Completed",
-  CancelledByRider: "Cancelled by rider",
+  CancelledByRider: "Cancelled by customer",
+  CancelledByCustomer: "Cancelled by customer",
   CancelledByDriver: "Cancelled by you",
   Expired: "Expired",
 };

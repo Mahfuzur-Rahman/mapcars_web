@@ -82,7 +82,7 @@ export default function RidePage() {
             someone you trust.
           </FeatureCard>
           <FeatureCard icon={F.star} title="Rated drivers">
-            Every driver is verified and rated by riders like you, so you always
+            Every driver is verified and rated by customers like you, so you always
             know who you&rsquo;re travelling with.
           </FeatureCard>
           <FeatureCard icon={F.card} title="Easy payment">

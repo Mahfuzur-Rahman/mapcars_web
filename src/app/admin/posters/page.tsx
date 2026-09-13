@@ -269,7 +269,7 @@ function PosterForm({
         <Field
           label="Link URL"
           htmlFor="posterLink"
-          hint="Optional — where the poster takes riders when clicked."
+          hint="Optional — where the poster takes customers when clicked."
         >
           <Input
             id="posterLink"

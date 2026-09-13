@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  riderAuth,
-  riderTrips,
+  customerAuth,
+  customerTrips,
   savedPlaces,
   ApiError,
-  type RiderProfileResponse,
+  type CustomerProfileResponse,
   type TripSummary,
   type SavedPlaceResponse,
 } from "@/lib/api";
@@ -26,13 +26,13 @@ import {
 } from "@/components/ui";
 
 export default function AccountDashboard() {
-  const [profile, setProfile] = useState<RiderProfileResponse | null>(null);
+  const [profile, setProfile] = useState<CustomerProfileResponse | null>(null);
   const [trips, setTrips] = useState<TripSummary[] | null>(null);
   const [places, setPlaces] = useState<SavedPlaceResponse[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    Promise.all([riderAuth.getProfile(), riderTrips.list(), savedPlaces.list()])
+    Promise.all([customerAuth.getProfile(), customerTrips.list(), savedPlaces.list()])
       .then(([p, t, sp]) => {
         setProfile(p);
         setTrips(t);

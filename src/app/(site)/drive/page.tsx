@@ -113,7 +113,7 @@ export default function DrivePage() {
           cols={3}
           items={[
             { title: "Apply online", body: "Tell us about yourself and your vehicle. It takes about ten minutes." },
-            { title: "Get verified", body: "We check your PHV licence and documents so every rider is in safe hands." },
+            { title: "Get verified", body: "We check your PHV licence and documents so every customer is in safe hands." },
             { title: "Go online & earn", body: "Download the MapCars Driver app, tap 'Go online', and start accepting trips." },
           ]}
         />

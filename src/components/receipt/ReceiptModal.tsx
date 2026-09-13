@@ -26,14 +26,14 @@ interface ReceiptModalProps {
   trip: ReceiptTripData | null;
   isOpen: boolean;
   onClose: () => void;
-  userType?: "rider" | "driver" | "admin";
+  userType?: "customer" | "driver" | "admin";
 }
 
 export function ReceiptModal({
   trip,
   isOpen,
   onClose,
-  userType = "rider",
+  userType = "customer",
 }: ReceiptModalProps) {
   if (!isOpen || !trip) return null;
 

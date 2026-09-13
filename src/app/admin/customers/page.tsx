@@ -2,23 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { adminRiders, ApiError, type AdminRiderListItem } from "@/lib/api";
+import { adminCustomers, ApiError, type AdminCustomerListItem } from "@/lib/api";
 
-export default function AdminRidersPage() {
-  const [riders, setRiders] = useState<AdminRiderListItem[] | null>(null);
+export default function AdminCustomersPage() {
+  const [customers, setCustomers] = useState<AdminCustomerListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    adminRiders
+    adminCustomers
       .list()
-      .then(setRiders)
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load riders"));
+      .then(setCustomers)
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load customers"));
   }, []);
 
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-900">Riders</h1>
+        <h1 className="text-2xl font-bold text-zinc-900">Customers</h1>
         <p className="mt-1 text-sm text-zinc-500">All customer accounts.</p>
       </div>
 
@@ -40,7 +40,7 @@ export default function AdminRidersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {riders?.map((r) => (
+            {customers?.map((r) => (
               <tr key={r.id} className="hover:bg-zinc-50">
                 <td className="px-5 py-3 font-medium text-zinc-900">
                   {r.fullName || <span className="text-zinc-400">Unnamed</span>}
@@ -60,7 +60,7 @@ export default function AdminRidersPage() {
                 </td>
                 <td className="px-5 py-3 text-right">
                   <Link
-                    href={`/admin/riders/${r.id}`}
+                    href={`/admin/customers/${r.id}`}
                     className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
                   >
                     View
@@ -68,14 +68,14 @@ export default function AdminRidersPage() {
                 </td>
               </tr>
             ))}
-            {riders && riders.length === 0 && (
+            {customers && customers.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-5 py-8 text-center text-zinc-400">
-                  No riders yet.
+                  No customers yet.
                 </td>
               </tr>
             )}
-            {!riders && !error && (
+            {!customers && !error && (
               <tr>
                 <td colSpan={5} className="px-5 py-8 text-center text-zinc-400">
                   Loading…

@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { proxyPublic } from "@/lib/server/bff";
 
-// Resends the email verification code (invalidates the previous one).
+// Signup only triggers an email OTP — no session is created until verification.
 export async function POST(req: NextRequest) {
-  return proxyPublic(req, "/api/v1/auth/riders/resend-email");
+  return proxyPublic(req, "/api/v1/auth/customers/signup");
 }

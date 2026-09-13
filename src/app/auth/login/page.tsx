@@ -5,7 +5,7 @@ import "../auth.css";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { riderAuth, unifiedAuth, ApiError } from "@/lib/api";
+import { customerAuth, unifiedAuth, ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { normalizeUkPhone } from "@/lib/phone";
 import AuthShell from "@/components/auth/AuthShell";
@@ -65,7 +65,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Set when the same email+password matches both a rider and a driver
+  // Set when the same email+password matches both a customer and a driver
   // account — the user picks which one they mean before we redirect.
   const [choosingRole, setChoosingRole] = useState(false);
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
     }
   }
 
-  async function chooseRole(userType: "rider" | "driver") {
+  async function chooseRole(userType: "customer" | "driver") {
     setLoading(true);
     setError(null);
     try {
@@ -119,7 +119,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const normalized = normalizeUkPhone(phone);
-      const res = await riderAuth.sendOtp(normalized);
+      const res = await customerAuth.sendOtp(normalized);
       const params = new URLSearchParams({ phone: normalized, intent: "login" });
       if (env.isDev && res.devCode) params.set("dev", res.devCode);
       router.push(`/auth/verify?${params}`);
@@ -134,12 +134,12 @@ export default function LoginPage() {
     <AuthShell
       headlineLead="Welcome back to"
       headlineHighlight="MapCars"
-      tagline="One sign-in for riders, drivers, and admins — we'll take you straight to your dashboard."
+      tagline="One sign-in for customers, drivers, and admins — we'll take you straight to your dashboard."
     >
       <h2 className="auth-title">Sign in</h2>
       <p className="auth-sub">
         {choosingRole
-          ? "This email is used by both a rider and a driver account."
+          ? "This email is used by both a customer and a driver account."
           : "Good to see you again. Let’s get you moving."}
       </p>
 
@@ -156,9 +156,9 @@ export default function LoginPage() {
             type="button"
             className="auth-btn"
             disabled={loading}
-            onClick={() => chooseRole("rider")}
+            onClick={() => chooseRole("customer")}
           >
-            {loading ? <span className="auth-spinner" /> : <>Continue as rider {IC.arrow}</>}
+            {loading ? <span className="auth-spinner" /> : <>Continue as customer {IC.arrow}</>}
           </button>
           <button
             type="button"
@@ -273,7 +273,7 @@ export default function LoginPage() {
               </button>
               <p className="auth-hint">
                 We&rsquo;ll text you a 6-digit code. Standard SMS rates apply. Phone
-                sign-in is for rider accounts — drivers and admins should use the
+                sign-in is for customer accounts — drivers and admins should use the
                 Email tab.
               </p>
             </form>

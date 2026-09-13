@@ -65,7 +65,7 @@ export default function CareersPage() {
           center
           eyebrow="Why MapCars"
           title="Work that actually ships"
-          desc="No endless committees. You'll see your work in the hands of real riders and drivers within weeks."
+          desc="No endless committees. You'll see your work in the hands of real customers and drivers within weeks."
         />
         <div className="grid grid-3">
           <FeatureCard icon={PERKS.rocket} title="Founding-team impact">

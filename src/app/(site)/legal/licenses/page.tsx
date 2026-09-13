@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 const OSS = [
   { name: "Next.js", license: "MIT", use: "Web application framework" },
   { name: "React", license: "MIT", use: "User interface library" },
-  { name: "Flutter", license: "BSD-3-Clause", use: "Mobile apps (rider & driver)" },
+  { name: "Flutter", license: "BSD-3-Clause", use: "Mobile apps (customer & driver)" },
   { name: ".NET / ASP.NET Core", license: "MIT", use: "Backend API" },
   { name: "Tailwind CSS", license: "MIT", use: "Styling" },
   { name: "Mapbox GL", license: "Mapbox TOS", use: "Maps & geocoding" },

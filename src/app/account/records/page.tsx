@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { riderTrips, ApiError, type TripSummary } from "@/lib/api";
+import { customerTrips, ApiError, type TripSummary } from "@/lib/api";
 import { ReceiptModal } from "@/components/receipt/ReceiptModal";
 import { Icon } from "@/components/ui/Icon";
 
@@ -12,6 +12,7 @@ const STATUS_LABEL: Record<string, string> = {
   InProgress: "In progress",
   Completed: "Completed",
   CancelledByRider: "Cancelled by you",
+  CancelledByCustomer: "Cancelled by you",
   CancelledByDriver: "Cancelled by driver",
   Expired: "No driver found",
 };
@@ -22,7 +23,7 @@ export default function RecordsPage() {
   const [selectedTrip, setSelectedTrip] = useState<TripSummary | null>(null);
 
   useEffect(() => {
-    riderTrips
+    customerTrips
       .list()
       .then(setTrips)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load trips"));
@@ -112,7 +113,7 @@ export default function RecordsPage() {
         trip={selectedTrip}
         isOpen={selectedTrip !== null}
         onClose={() => setSelectedTrip(null)}
-        userType="rider"
+        userType="customer"
       />
     </div>
   );

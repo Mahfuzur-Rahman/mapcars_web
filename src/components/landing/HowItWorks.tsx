@@ -10,7 +10,7 @@ interface Step {
   icon: React.ReactNode;
 }
 
-const RIDER_STEPS: Step[] = [
+const CUSTOMER_STEPS: Step[] = [
   {
     num: "01",
     title: "Request in Seconds",
@@ -90,10 +90,10 @@ const DRIVER_STEPS: Step[] = [
 ];
 
 export default function HowItWorks() {
-  const [tab, setTab] = useState<"riders" | "drivers">("riders");
+  const [tab, setTab] = useState<"customers" | "drivers">("customers");
   const [activeStep, setActiveStep] = useState<number>(0);
 
-  const steps = tab === "riders" ? RIDER_STEPS : DRIVER_STEPS;
+  const steps = tab === "customers" ? CUSTOMER_STEPS : DRIVER_STEPS;
 
   return (
     <section className="how-it-works" id="how-it-works">
@@ -109,13 +109,13 @@ export default function HowItWorks() {
 
           <div className="how-tab-switcher">
             <button
-              className={`how-tab-btn${tab === "riders" ? " active" : ""}`}
+              className={`how-tab-btn${tab === "customers" ? " active" : ""}`}
               onClick={() => {
-                setTab("riders");
+                setTab("customers");
                 setActiveStep(0);
               }}
             >
-              For Riders
+              For Customers
             </button>
             <button
               className={`how-tab-btn${tab === "drivers" ? " active" : ""}`}

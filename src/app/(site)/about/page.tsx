@@ -231,7 +231,7 @@ export default function AboutPage() {
               <div className="founder-company">MAP CARS CHI LTD • Chichester, UK</div>
               
               <blockquote className="founder-quote">
-                &ldquo;We built MapCars because the South Coast was neglected by national conglomerates. Drivers were giving up a third of their earnings, while riders faced unpredictable prices and distant customer service. We are proving that a ride-sharing service can be profitable, technologically advanced, and deeply ethical all at once.&rdquo;
+                &ldquo;We built MapCars because the South Coast was neglected by national conglomerates. Drivers were giving up a third of their earnings, while customers faced unpredictable prices and distant customer service. We are proving that a ride-sharing service can be profitable, technologically advanced, and deeply ethical all at once.&rdquo;
               </blockquote>
 
               <div className="founder-signature-line">
@@ -283,7 +283,7 @@ export default function AboutPage() {
       {/* High-Converting Final CTA Band with Micro-Interactions */}
       <CTABand
         title="Be part of the South Coast mobility revolution"
-        text="Join thousands of founding riders getting access to locked upfront fares, or apply to join our high-earning driver fleet."
+        text="Join thousands of founding customers getting access to locked upfront fares, or apply to join our high-earning driver fleet."
         primary={{ href: "/auth/signup", label: "Join the founding waitlist" }}
         secondary={{ href: "/drive", label: "Apply to drive (85%+ pay)" }}
       />

@@ -16,14 +16,48 @@ const API_BASE =
   (process.env.NODE_ENV === "production" ? undefined : "http://127.0.0.1:5200");
 
 export const ADMIN_COOKIE = "mc_admin";
-export const RIDER_COOKIE = "mc_rider";
+export const CUSTOMER_COOKIE = "mc_customer";
+
+/**
+ * What the customer session cookie was called before the Rider -> Customer
+ * rename. mapcars.uk is live, so renaming the cookie outright would sign every
+ * customer out at deploy - and a forced re-login is indistinguishable, from the
+ * user's side, from a security incident.
+ *
+ * So reads fall back to it, writes only ever use the new name, and clearing a
+ * session expires both. A session therefore migrates on its owner's next
+ * request, with nothing for them to notice. Delete this once the refresh-cookie
+ * lifetime above (90 days) has passed since the rename shipped.
+ */
+const LEGACY_CUSTOMER_COOKIE = "mc_rider";
+
+/** The pre-rename name for a cookie, or null if it never had one. */
+function legacyNameFor(cookieName: string): string | null {
+  return cookieName === CUSTOMER_COOKIE ? LEGACY_CUSTOMER_COOKIE : null;
+}
+
+/** Access-token cookie, preferring the current name and falling back to the old. */
+function readAccessCookie(req: NextRequest, cookieName: string): string | undefined {
+  const current = req.cookies.get(cookieName)?.value;
+  if (current) return current;
+  const legacy = legacyNameFor(cookieName);
+  return legacy ? req.cookies.get(legacy)?.value : undefined;
+}
+
+/** Refresh-token cookie, same fallback. */
+function readRefreshCookie(req: NextRequest, cookieName: string): string | undefined {
+  const current = req.cookies.get(refreshCookieFor(cookieName))?.value;
+  if (current) return current;
+  const legacy = legacyNameFor(cookieName);
+  return legacy ? req.cookies.get(refreshCookieFor(legacy))?.value : undefined;
+}
 export const DRIVER_COOKIE = "mc_driver";
 
 const TIMEOUT_MS = 15_000;
 
 /**
- * The refresh-token cookie paired with an access-token cookie ("mc_rider" ->
- * "mc_rider_rt"). Derived rather than declared so every existing
+ * The refresh-token cookie paired with an access-token cookie ("mc_customer" ->
+ * "mc_customer_rt"). Derived rather than declared so every existing
  * `proxyAuthed(..., SOME_COOKIE)` call site gains renewal without being touched.
  */
 function refreshCookieFor(cookieName: string): string {
@@ -128,7 +162,7 @@ type Renewal = { token: string; refreshToken: string; expiresInMinutes: number }
  * in which case the caller should clear both cookies and let the user sign in.
  */
 async function renewSession(req: NextRequest, cookieName: string): Promise<Renewal | null> {
-  const refreshToken = req.cookies.get(refreshCookieFor(cookieName))?.value;
+  const refreshToken = readRefreshCookie(req, cookieName);
   if (!refreshToken) return null;
 
   try {
@@ -164,6 +198,13 @@ function setSessionCookies(res: NextResponse, cookieName: string, renewed: Renew
 function clearSessionCookies(res: NextResponse, cookieName: string): void {
   res.cookies.set(cookieName, "", cookieOptions(0));
   res.cookies.set(refreshCookieFor(cookieName), "", cookieOptions(0));
+  // Also retire the pre-rename pair, so "log out" genuinely ends the session
+  // rather than leaving a cookie the fallback above would happily accept.
+  const legacy = legacyNameFor(cookieName);
+  if (legacy) {
+    res.cookies.set(legacy, "", cookieOptions(0));
+    res.cookies.set(refreshCookieFor(legacy), "", cookieOptions(0));
+  }
 }
 
 /** Forward a POST body and return the upstream response verbatim (no cookie set). */
@@ -210,7 +251,7 @@ export async function proxyLogin(
 
 /**
  * Forward a login POST whose cookie isn't known until the response comes back
- * — the unified `/auth/login` endpoint returns `userType` ("admin" | "rider" |
+ * — the unified `/auth/login` endpoint returns `userType` ("admin" | "customer" |
  * "driver"), and that's what picks the cookie out of `cookieByRole`.
  */
 export async function proxyRoleLogin(
@@ -226,7 +267,7 @@ export async function proxyRoleLogin(
       return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
     }
     // The unified endpoint can ask the client to disambiguate instead of
-    // returning a token (e.g. the same email+password matches both a rider
+    // returning a token (e.g. the same email+password matches both a customer
     // and a driver account) — nothing to put in a cookie yet.
     if ((data as { requiresChoice?: boolean }).requiresChoice) {
       return NextResponse.json(data, { status: 200 });
@@ -257,7 +298,7 @@ export async function proxyAuthed(
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
   cookieName: string,
 ): Promise<NextResponse> {
-  const token = req.cookies.get(cookieName)?.value;
+  const token = readAccessCookie(req, cookieName);
 
   // No access token, but possibly a live refresh cookie — the normal state after
   // an hour away from the tab. Renew rather than reporting "not authenticated".
@@ -336,7 +377,7 @@ export async function proxyAuthedUpload(
   apiPath: string,
   cookieName: string,
 ): Promise<NextResponse> {
-  const token = req.cookies.get(cookieName)?.value;
+  const token = readAccessCookie(req, cookieName);
   if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
 
   try {
@@ -378,7 +419,7 @@ export async function proxyAuthedDownload(
   apiPath: string,
   cookieName: string,
 ): Promise<NextResponse> {
-  const token = req.cookies.get(cookieName)?.value;
+  const token = readAccessCookie(req, cookieName);
   if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
 
   try {
@@ -419,7 +460,7 @@ export async function proxyAuthedDownload(
  * stuck in a signed-in UI, so the cookies are cleared regardless.
  */
 export async function proxyLogout(req: NextRequest, cookieName: string): Promise<NextResponse> {
-  const refreshToken = req.cookies.get(refreshCookieFor(cookieName))?.value;
+  const refreshToken = readRefreshCookie(req, cookieName);
   if (refreshToken) {
     try {
       await callApi("/api/v1/auth/logout", "POST", { refreshToken });

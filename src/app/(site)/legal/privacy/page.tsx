@@ -4,7 +4,7 @@ import { PageHero, Section } from "@/components/site/ui";
 export const metadata: Metadata = {
   title: "Privacy Policy — MapCars",
   description:
-    "How MapCars collects, uses, and protects your personal data across the rider and driver apps.",
+    "How MapCars collects, uses, and protects your personal data across the customer and driver apps.",
 };
 
 export default function PrivacyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         center
         eyebrow="Legal"
         title="Privacy Policy"
-        subtitle="How we handle your data across the MapCars rider and driver apps."
+        subtitle="How we handle your data across the MapCars customer and driver apps."
       />
 
       <Section narrow>
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
             This Privacy Policy explains how <strong>MapCars</strong>{" "}
             (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) collects,
             uses, and protects your personal data when you use the{" "}
-            <strong>MapCars</strong> rider app and the{" "}
+            <strong>MapCars</strong> customer app and the{" "}
             <strong>MapCars Driver</strong> app (together, the &ldquo;Apps&rdquo;)
             and related services (the &ldquo;Service&rdquo;). We are the data
             controller under the UK GDPR and the Data Protection Act 2018.
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
             With your permission, we collect your device&rsquo;s precise and
             approximate location to show your position on the map, set your
             pickup point, match you with a nearby driver, and — for drivers —
-            share your live location with the assigned rider during a trip.
+            share your live location with the assigned customer during a trip.
           </p>
           <h3>Trip information</h3>
           <p>
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
               </thead>
               <tbody>
                 <tr><td>Create and manage your account</td><td>Contract</td></tr>
-                <tr><td>Match riders with drivers and complete trips</td><td>Contract</td></tr>
+                <tr><td>Match customers with drivers and complete trips</td><td>Contract</td></tr>
                 <tr><td>Show maps and your location</td><td>Consent (device permission) / Contract</td></tr>
                 <tr><td>Verify driver eligibility (PHV licence)</td><td>Contract / Legal obligation</td></tr>
                 <tr><td>Keep the Service secure and prevent fraud</td><td>Legitimate interests</td></tr>
@@ -106,7 +106,7 @@ export default function PrivacyPage() {
           <h2>4. Who we share data with</h2>
           <p>We do not sell your personal data. We share it only as needed to run the Service:</p>
           <ul>
-            <li><strong>Between riders and drivers</strong> — limited details (e.g. first name, live location during a trip, pickup and drop-off) to complete your ride.</li>
+            <li><strong>Between customers and drivers</strong> — limited details (e.g. first name, live location during a trip, pickup and drop-off) to complete your ride.</li>
             <li><strong>Service providers</strong> — mapping, hosting, and (when launched) payments (Stripe), acting on our instructions.</li>
             <li><strong>Authorities and licensing bodies</strong> — where required by law or to meet private-hire licensing obligations.</li>
           </ul>

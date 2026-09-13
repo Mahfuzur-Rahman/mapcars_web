@@ -16,7 +16,7 @@ const LEVELS = ["Error", "Warning", "Fatal"] as const;
 const SOURCE_LABELS: Record<string, string> = {
   Api: "API",
   Web: "Web",
-  CustomerApp: "Rider app",
+  CustomerApp: "Customer app",
   DriverApp: "Driver app",
 };
 

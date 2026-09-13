@@ -81,7 +81,7 @@ export default function BusinessPage() {
             month.
           </FeatureCard>
           <FeatureCard icon={F.users} title="Manage your team">
-            Add or remove riders in seconds and set who can travel, when, and
+            Add or remove customers in seconds and set who can travel, when, and
             within what budget.
           </FeatureCard>
           <FeatureCard icon={F.dash} title="Expense visibility">

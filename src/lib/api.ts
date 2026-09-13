@@ -101,8 +101,8 @@ export interface AdminSession {
   menus: MenuResponse[];
 }
 
-// Returned by rider login / verification (token stripped → cookie).
-export interface RiderSession {
+// Returned by customer login / verification (token stripped → cookie).
+export interface CustomerSession {
   expiresInMinutes: number;
   userType: string;
   userId: string;
@@ -137,10 +137,10 @@ export interface OtpSentResponse {
 export interface UnifiedSession {
   /** True when the email+password matched more than one account — see `availableUserTypes`. */
   requiresChoice?: boolean;
-  availableUserTypes?: ("rider" | "driver")[];
+  availableUserTypes?: ("customer" | "driver")[];
 
   expiresInMinutes: number;
-  userType: "admin" | "rider" | "driver" | "";
+  userType: "admin" | "customer" | "driver" | "";
   userId?: string;
   fullName?: string;
   email?: string;
@@ -191,16 +191,16 @@ export type HealthResponse = { status: string; service: string };
 export type PingResponse = { message: string; utc: string };
 
 // ── Unified auth  (BFF: /api/bff/auth/login) ─────────────────────────────────
-// The web app's one sign-in surface — detects Admin/Rider/Driver from the
+// The web app's one sign-in surface — detects Admin/Customer/Driver from the
 // submitted credentials. See `web/src/app/auth/login/page.tsx`.
 
 export const unifiedAuth = {
   /** `loginAs` is only needed on a second call, after the first came back with `requiresChoice`. */
-  login: (email: string, password: string, loginAs?: "rider" | "driver") =>
+  login: (email: string, password: string, loginAs?: "customer" | "driver") =>
     bff<UnifiedSession>("POST", "/auth/login", { email, password, loginAs }),
 
-  /** Google sign-in for the unified web login endpoint (detects rider vs driver). */
-  google: (idToken: string, signUp = false, loginAs?: "rider" | "driver") =>
+  /** Google sign-in for the unified web login endpoint (detects customer vs driver). */
+  google: (idToken: string, signUp = false, loginAs?: "customer" | "driver") =>
     bff<UnifiedSession>("POST", "/auth/google", { idToken, signUp, loginAs }),
 };
 
@@ -329,34 +329,34 @@ export const fareChart = {
   update: (chart: FareChart) => bff<FareChart>("PUT", "/admin/fare-chart", chart),
 };
 
-// ── Rider auth  (BFF: /api/bff/rider/*) ──────────────────────────────────────
+// ── Customer auth  (BFF: /api/bff/customer/*) ──────────────────────────────────────
 
-export const riderAuth = {
+export const customerAuth = {
   sendOtp: (phone: string) =>
-    bff<OtpSentResponse>("POST", "/rider/send-otp", { phone }),
+    bff<OtpSentResponse>("POST", "/customer/send-otp", { phone }),
 
   verifyPhone: (phone: string, code: string) =>
-    bff<RiderSession>("POST", "/rider/verify-phone", { phone, code }),
+    bff<CustomerSession>("POST", "/customer/verify-phone", { phone, code }),
 
   signup: (email: string, password: string, fullName: string) =>
-    bff<OtpSentResponse>("POST", "/rider/signup", { email, password, fullName }),
+    bff<OtpSentResponse>("POST", "/customer/signup", { email, password, fullName }),
 
   resendEmail: (email: string) =>
-    bff<OtpSentResponse>("POST", "/rider/resend-email", { email }),
+    bff<OtpSentResponse>("POST", "/customer/resend-email", { email }),
 
   verifyEmail: (email: string, code: string) =>
-    bff<RiderSession>("POST", "/rider/verify-email", { email, code }),
+    bff<CustomerSession>("POST", "/customer/verify-email", { email, code }),
 
   /**
    * `signUp` must be true only from the create-account page. From the sign-in
    * page it stays false, so a Google account with no Mapcars account is told to
-   * sign up instead of silently becoming a new rider.
+   * sign up instead of silently becoming a new customer.
    */
   google: (idToken: string, signUp = false) =>
-    bff<RiderSession>("POST", "/rider/google", { idToken, signUp }),
+    bff<CustomerSession>("POST", "/customer/google", { idToken, signUp }),
 
-  /** Current rider's profile (Wave 1 profile/compliance fields). */
-  getProfile: () => bff<RiderProfileResponse>("GET", "/rider/me"),
+  /** Current customer's profile (Wave 1 profile/compliance fields). */
+  getProfile: () => bff<CustomerProfileResponse>("GET", "/customer/me"),
 
   updateProfile: (
     fullName: string,
@@ -368,7 +368,7 @@ export const riderAuth = {
       accessibilityNeeds?: string;
     },
   ) =>
-    bff<RiderProfileResponse>("PATCH", "/rider/me", {
+    bff<CustomerProfileResponse>("PATCH", "/customer/me", {
       fullName,
       ...(opts?.email ? { email: opts.email } : {}),
       ...(opts?.emergencyContactName
@@ -383,14 +383,14 @@ export const riderAuth = {
       ...(opts?.accessibilityNeeds ? { accessibilityNeeds: opts.accessibilityNeeds } : {}),
     }),
 
-  logout: () => bff<{ ok: boolean }>("POST", "/rider/logout"),
+  logout: () => bff<{ ok: boolean }>("POST", "/customer/logout"),
 };
 
-// Returned by GET/PATCH /api/v1/auth/riders/me. PATCH used to return the
-// shared RiderSession — it now returns this shape instead (breaking change,
+// Returned by GET/PATCH /api/v1/auth/customers/me. PATCH used to return the
+// shared CustomerSession — it now returns this shape instead (breaking change,
 // intentional — see Wave 1 profile/compliance-fields project).
-export interface RiderProfileResponse {
-  riderId: string;
+export interface CustomerProfileResponse {
+  customerId: string;
   fullName?: string;
   email?: string;
   phone?: string;
@@ -401,7 +401,7 @@ export interface RiderProfileResponse {
   isProfileComplete: boolean;
 }
 
-// ── Rider trips  (BFF: /api/bff/rider/trips) ─────────────────────────────────
+// ── Customer trips  (BFF: /api/bff/customer/trips) ─────────────────────────────────
 
 export interface TripSummary {
   id: string;
@@ -424,12 +424,12 @@ export interface TripSummary {
   isNoShow: boolean;
 }
 
-export const riderTrips = {
-  /** The current rider's own trip history. */
-  list: () => bff<TripSummary[]>("GET", "/rider/trips"),
+export const customerTrips = {
+  /** The current customer's own trip history. */
+  list: () => bff<TripSummary[]>("GET", "/customer/trips"),
 };
 
-// ── Saved places  (BFF: /api/bff/saved-places) — rider only ──────────────────
+// ── Saved places  (BFF: /api/bff/saved-places) — customer only ──────────────────
 
 export interface SavedPlaceResponse {
   id: string;
@@ -534,12 +534,12 @@ export const driverTrips = {
   list: () => bff<DriverTripSummary[]>("GET", "/driver/trips"),
 };
 
-// ── Documents  (BFF: /api/bff/{rider,driver}/documents) ──────────────────────
-// Rider document types: identity/address proof. Driver document types: PHV
+// ── Documents  (BFF: /api/bff/{customer,driver}/documents) ──────────────────────
+// Customer document types: identity/address proof. Driver document types: PHV
 // licence/vehicle docs. The API rejects a type that doesn't match the caller's
 // role — see Mapcars.Application.Documents.Services.DocumentService.
 
-export type RiderDocumentType = "ProofOfIdentity" | "ProofOfAddress";
+export type CustomerDocumentType = "ProofOfIdentity" | "ProofOfAddress";
 export type DriverDocumentType =
   | "PhvLicence"
   | "VehicleInsurance"
@@ -570,7 +570,7 @@ export interface DocumentSummary {
 }
 
 async function uploadDocument(
-  basePath: "/rider/documents" | "/driver/documents",
+  basePath: "/customer/documents" | "/driver/documents",
   type: string,
   file: File,
   expiresOn?: string,
@@ -592,14 +592,14 @@ async function uploadDocument(
   return res.json() as Promise<DocumentSummary>;
 }
 
-export const riderDocuments = {
-  upload: (type: RiderDocumentType, file: File, expiresOn?: string) =>
-    uploadDocument("/rider/documents", type, file, expiresOn),
-  list: () => bff<DocumentSummary[]>("GET", "/rider/documents"),
+export const customerDocuments = {
+  upload: (type: CustomerDocumentType, file: File, expiresOn?: string) =>
+    uploadDocument("/customer/documents", type, file, expiresOn),
+  list: () => bff<DocumentSummary[]>("GET", "/customer/documents"),
   requestDeletion: (documentId: string, reason?: string) =>
-    bff<DocumentSummary>("POST", `/rider/documents/${documentId}/request-deletion`, { reason }),
+    bff<DocumentSummary>("POST", `/customer/documents/${documentId}/request-deletion`, { reason }),
   contentUrl: (documentId: string) =>
-    `/api/bff/rider/documents/${documentId}/content`,
+    `/api/bff/customer/documents/${documentId}/content`,
 };
 
 export const driverDocuments = {
@@ -829,9 +829,9 @@ export const adminDriverReview = {
     `/api/bff/admin/driver-review/documents/${documentId}/content`,
 };
 
-// ── Admin riders  (BFF: /api/bff/admin/riders) — SuperAdmin or Admin ─────────
+// ── Admin customers  (BFF: /api/bff/admin/customers) — SuperAdmin or Admin ─────────
 
-export interface AdminRiderListItem {
+export interface AdminCustomerListItem {
   id: string;
   fullName: string;
   email: string;
@@ -840,16 +840,16 @@ export interface AdminRiderListItem {
   createdAtUtc: string;
 }
 
-export const adminRiders = {
-  list: () => bff<AdminRiderListItem[]>("GET", "/admin/riders"),
-  get: (id: string) => bff<AdminRiderListItem>("GET", `/admin/riders/${id}`),
+export const adminCustomers = {
+  list: () => bff<AdminCustomerListItem[]>("GET", "/admin/customers"),
+  get: (id: string) => bff<AdminCustomerListItem>("GET", `/admin/customers/${id}`),
 };
 
 // ── Admin reporting  (BFF: /api/bff/admin/{stats,trips,live}) ────────────────
 // Read-only dashboard/trip-history/live-map data. SuperAdmin or Admin.
 
 export interface AdminStats {
-  totalRiders: number;
+  totalCustomers: number;
   totalDrivers: number;
   onlineDrivers: number;
   pendingDriverApprovals: number;
@@ -865,7 +865,13 @@ export type TripStatusName =
   | "DriverArrived"
   | "InProgress"
   | "Completed"
+  // Two spellings on purpose, for the length of the Rider -> Customer rename.
+  // The API still emits CancelledByRider today (the value is persisted in
+  // trips."Status", so it only flips with migration 031); CancelledByCustomer is
+  // what it will emit afterwards. Handling both means this app survives the
+  // cutover without a redeploy. Drop CancelledByRider once 031 has shipped.
   | "CancelledByRider"
+  | "CancelledByCustomer"
   | "CancelledByDriver"
   // Nobody accepted the request before its search window ran out. Distinct from
   // a cancellation: no one walked away, the platform found no driver.
@@ -873,7 +879,7 @@ export type TripStatusName =
 
 export interface AdminTripListItem {
   id: string;
-  riderName?: string;
+  customerName?: string;
   driverName?: string;
   pickupAddress: string;
   dropoffAddress: string;
@@ -891,7 +897,7 @@ export interface AdminTripListItem {
 export interface AdminActiveTrip {
   id: string;
   status: TripStatusName;
-  riderName?: string;
+  customerName?: string;
   driverName?: string;
   pickupAddress: string;
   pickupLat: number;
