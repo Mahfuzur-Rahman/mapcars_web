@@ -6,11 +6,15 @@ import Link from "next/link";
 import {
   adminDriverReview,
   ApiError,
+  paymentSettings,
+  type DriverPaymentOptions,
   type DriverReviewDetail,
   type DriverStatus,
   type DocumentSummary,
   type VehicleTierAppealResponse,
 } from "@/lib/api";
+// Only Checkbox: this file defines its own Card and Field, which shadow the kit's.
+import { Checkbox } from "@/components/ui";
 import { StatusBadge } from "../page";
 
 // DocumentType enum name → human label.
@@ -47,6 +51,9 @@ export default function AdminDriverDetailPage() {
   const [appealDecision, setAppealDecision] = useState<"Approved" | "Rejected">("Approved");
   const [adminNotes, setAdminNotes] = useState("");
 
+  // Per-driver payment overrides, resolved against the global toggles.
+  const [payment, setPayment] = useState<DriverPaymentOptions | null>(null);
+
   const load = useCallback(() => {
     adminDriverReview
       .getDriver(driverId)
@@ -60,9 +67,32 @@ export default function AdminDriverDetailPage() {
       .getDriverAppeals(driverId)
       .then((data: VehicleTierAppealResponse[]) => setAppeals(data))
       .catch(() => {});
+
+    paymentSettings
+      .getDriver(driverId)
+      .then(setPayment)
+      .catch(() => {}); // non-fatal: the rest of the page is still useful
   }, [driverId]);
 
   useEffect(load, [load]);
+
+  async function savePaymentOptions(next: Pick<DriverPaymentOptions, "acceptsCashOverride" | "acceptsCardOverride">) {
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      setPayment(await paymentSettings.updateDriver(driverId, next));
+      setSuccess("Payment options updated");
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (e) {
+      // The API refuses to leave a driver with no usable method at all — that
+      // driver would never be dispatched anything and would just see an empty
+      // board. Surface the reason rather than a generic failure.
+      setError(e instanceof ApiError ? e.message : "Failed to update payment options");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function reviewDoc(doc: DocumentSummary, status: "Approved" | "Rejected") {
     setBusy(true);
@@ -270,6 +300,69 @@ export default function AdminDriverDetailPage() {
               <p className="text-sm text-zinc-400">No vehicle registered yet.</p>
             )}
           </Card>
+
+          {payment && (
+            <Card title="Payment Methods">
+              <p className="mb-3 text-xs text-zinc-500">
+                Which fares this driver can be offered. Unticking a box hides those jobs
+                from their board entirely — they are not shown and then refused.
+              </p>
+
+              <Checkbox
+                label="Cash jobs"
+                hint={
+                  payment.acceptsCashOverride === null
+                    ? "Following the platform setting."
+                    : "Set explicitly for this driver."
+                }
+                checked={payment.effectiveAcceptsCash}
+                disabled={busy}
+                onChange={(e) =>
+                  savePaymentOptions({
+                    acceptsCashOverride: e.target.checked,
+                    acceptsCardOverride: payment.acceptsCardOverride,
+                  })
+                }
+              />
+
+              <Checkbox
+                label="Card jobs"
+                hint={
+                  payment.acceptsCardOverride === null
+                    ? "Following the platform setting."
+                    : "Set explicitly for this driver."
+                }
+                checked={payment.effectiveAcceptsCard}
+                disabled={busy}
+                onChange={(e) =>
+                  savePaymentOptions({
+                    acceptsCashOverride: payment.acceptsCashOverride,
+                    acceptsCardOverride: e.target.checked,
+                  })
+                }
+              />
+
+              {(payment.acceptsCashOverride !== null || payment.acceptsCardOverride !== null) && (
+                <button
+                  onClick={() =>
+                    savePaymentOptions({ acceptsCashOverride: null, acceptsCardOverride: null })
+                  }
+                  disabled={busy}
+                  className="mt-1 text-xs font-semibold text-zinc-500 underline underline-offset-2 hover:text-zinc-900 disabled:opacity-40"
+                >
+                  Clear overrides and follow the platform setting
+                </button>
+                )}
+
+                <p className="mt-3 border-t border-zinc-100 pt-3 text-xs text-zinc-400">
+                  The platform setting is a ceiling: a box switched off globally cannot be
+                  switched back on for one driver.{" "}
+                  <Link href="/admin/settings/payments" className="underline underline-offset-2">
+                    Platform payment settings
+                  </Link>
+                </p>
+              </Card>
+          )}
         </div>
 
         {/* Right: documents & appeals */}

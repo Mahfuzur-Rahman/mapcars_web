@@ -329,6 +329,46 @@ export const fareChart = {
   update: (chart: FareChart) => bff<FareChart>("PUT", "/admin/fare-chart", chart),
 };
 
+// ── Payment settings  (BFF: /api/bff/admin/payment-settings) ─────────────────
+
+export type PaymentMethodName = "Cash" | "Card";
+
+export interface PaymentSettings {
+  cashEnabled: boolean;
+  cardEnabled: boolean;
+  /** Which method the apps preselect. Never names a disabled method — the API
+   *  corrects it on write rather than rejecting the change. */
+  defaultMethod: PaymentMethodName;
+}
+
+export interface DriverPaymentOptions {
+  driverId: string;
+  /** null = follow the global setting. The tri-state is deliberate: it lets an
+   *  admin CLEAR an override, not only flip it. */
+  acceptsCashOverride: boolean | null;
+  acceptsCardOverride: boolean | null;
+  /** The override resolved against the global toggles, which act as a ceiling. */
+  effectiveAcceptsCash: boolean;
+  effectiveAcceptsCard: boolean;
+}
+
+export const paymentSettings = {
+  /** The current global toggles. */
+  get: () => bff<PaymentSettings>("GET", "/admin/payment-settings"),
+  /** Publish new toggles (SuperAdmin only). At least one method must stay on. */
+  update: (settings: PaymentSettings) =>
+    bff<PaymentSettings>("PUT", "/admin/payment-settings", settings),
+
+  /** One driver's overrides, with the effective result resolved. */
+  getDriver: (driverId: string) =>
+    bff<DriverPaymentOptions>("GET", `/admin/payment-settings/drivers/${driverId}`),
+  /** Set or clear one driver's overrides. Send null to clear. */
+  updateDriver: (
+    driverId: string,
+    options: Pick<DriverPaymentOptions, "acceptsCashOverride" | "acceptsCardOverride">,
+  ) => bff<DriverPaymentOptions>("PUT", `/admin/payment-settings/drivers/${driverId}`, options),
+};
+
 // ── Customer auth  (BFF: /api/bff/customer/*) ──────────────────────────────────────
 
 export const customerAuth = {

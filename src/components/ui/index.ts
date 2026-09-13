@@ -20,6 +20,7 @@ export { default as QuickLink, QuickLinks } from "./QuickLink";
 
 export { default as Button } from "./Button";
 export { default as Field, Input, Select } from "./Field";
+export { default as Checkbox } from "./Checkbox";
 export { default as SlideOver } from "./SlideOver";
 
 export { Page, PageHeader, SectionTitle } from "./Page";
