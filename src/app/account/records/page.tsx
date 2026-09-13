@@ -13,6 +13,7 @@ const STATUS_LABEL: Record<string, string> = {
   Completed: "Completed",
   CancelledByRider: "Cancelled by you",
   CancelledByDriver: "Cancelled by driver",
+  Expired: "No driver found",
 };
 
 export default function RecordsPage() {

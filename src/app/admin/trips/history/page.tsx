@@ -20,6 +20,7 @@ const FILTERS: { label: string; value: TripStatusName | "All" }[] = [
   { label: "Completed", value: "Completed" },
   { label: "Cancelled (rider)", value: "CancelledByRider" },
   { label: "Cancelled (driver)", value: "CancelledByDriver" },
+  { label: "Expired", value: "Expired" },
 ];
 
 const gbp = (n?: number) =>
@@ -203,6 +204,9 @@ function TripStatusBadge({ status }: { status: TripStatusName }) {
     Completed: "bg-green-50 text-green-700",
     CancelledByRider: "bg-red-50 text-red-700",
     CancelledByDriver: "bg-red-50 text-red-700",
+    // Amber, not red: nobody did anything wrong here — the request simply found
+    // no driver, which is a supply signal rather than a cancellation.
+    Expired: "bg-amber-50 text-amber-700",
   };
   const labels: Record<TripStatusName, string> = {
     Requested: "Requested",
@@ -212,6 +216,7 @@ function TripStatusBadge({ status }: { status: TripStatusName }) {
     Completed: "Completed",
     CancelledByRider: "Cancelled (rider)",
     CancelledByDriver: "Cancelled (driver)",
+    Expired: "Expired (no driver)",
   };
   return (
     <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${styles[status]}`}>

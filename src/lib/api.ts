@@ -866,7 +866,10 @@ export type TripStatusName =
   | "InProgress"
   | "Completed"
   | "CancelledByRider"
-  | "CancelledByDriver";
+  | "CancelledByDriver"
+  // Nobody accepted the request before its search window ran out. Distinct from
+  // a cancellation: no one walked away, the platform found no driver.
+  | "Expired";
 
 export interface AdminTripListItem {
   id: string;
