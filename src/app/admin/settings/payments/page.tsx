@@ -13,6 +13,7 @@ import {
   Checkbox,
   ErrorBanner,
   Field,
+  Input,
   Page,
   PageHeader,
   PageLoader,
@@ -170,6 +171,174 @@ export default function AdminPaymentSettingsPage() {
             </Select>
           </Field>
         </div>
+      </Card>
+
+      <Card className="mt-5">
+        <h2 className="mb-1 text-sm font-bold text-ink">Extra verification</h2>
+        <p className="mb-4 text-xs text-ink-faint">
+          When a customer with a saved card is asked to confirm with their bank again.
+          These are triggered by risk, never on a fixed schedule — card fraud runs its
+          course in days, so a monthly rule would only add friction for loyal customers
+          and never meet the attacker.
+        </p>
+
+        <Checkbox
+          label="On a new device"
+          hint="The strongest one. Someone who got into a customer's account still does not have their banking app."
+          checked={settings.challengeOnNewDevice}
+          onChange={(e) => {
+            const on = e.target.checked;
+            mutate((d) => {
+              d.challengeOnNewDevice = on;
+            });
+          }}
+        />
+
+        <Checkbox
+          label="After a failed charge"
+          hint="Before letting them book again. Cheap — they are already interrupted."
+          checked={settings.challengeAfterFailedCharge}
+          onChange={(e) => {
+            const on = e.target.checked;
+            mutate((d) => {
+              d.challengeAfterFailedCharge = on;
+            });
+          }}
+        />
+
+        <Checkbox
+          label="On cards that were never properly authenticated"
+          hint="Leaves well-verified cards alone. Applies only above the fare below."
+          checked={settings.challengeUnauthenticatedCards}
+          onChange={(e) => {
+            const on = e.target.checked;
+            mutate((d) => {
+              d.challengeUnauthenticatedCards = on;
+            });
+          }}
+        />
+
+        <div className="mt-5 grid gap-x-5 sm:grid-cols-2">
+          <Field
+            label="Only above this fare"
+            htmlFor="challengeAboveFare"
+            hint="Spends friction where a loss hurts — an airport run, not an £8 hop. 0 = always challenge."
+          >
+            <Input
+              id="challengeAboveFare"
+              type="number"
+              min={0}
+              max={1000}
+              step={1}
+              value={settings.challengeAboveFarePence / 100}
+              onChange={(e) => {
+                const pounds = Number(e.target.value);
+                mutate((d) => {
+                  d.challengeAboveFarePence = Math.round(pounds * 100);
+                });
+              }}
+            />
+          </Field>
+
+          <Field
+            label="Re-verify after this many dormant days"
+            htmlFor="dormantDays"
+            hint="An account waking after a long silence is a real resale signal. 0 = off."
+          >
+            <Input
+              id="dormantDays"
+              type="number"
+              min={0}
+              max={3650}
+              step={1}
+              value={settings.reverifyAfterDormantDays}
+              onChange={(e) => {
+                const days = Number(e.target.value);
+                mutate((d) => {
+                  d.reverifyAfterDormantDays = days;
+                });
+              }}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card className="mt-5">
+        <h2 className="mb-1 text-sm font-bold text-ink">Limits</h2>
+        <p className="mb-4 text-xs text-ink-faint">
+          What caps the damage when a card turns out not to belong to the person using
+          it.
+        </p>
+
+        <div className="grid gap-x-5 sm:grid-cols-2">
+          <Field
+            label="Saved cards per customer"
+            htmlFor="maxCards"
+            hint="A real customer needs two or three. A card tester needs hundreds. 1–20."
+          >
+            <Input
+              id="maxCards"
+              type="number"
+              min={1}
+              max={20}
+              step={1}
+              value={settings.maxSavedCardsPerCustomer}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                mutate((d) => {
+                  d.maxSavedCardsPerCustomer = n;
+                });
+              }}
+            />
+          </Field>
+
+          <Field
+            label="Card-add attempts per day"
+            htmlFor="maxAttempts"
+            hint="Failures included. This follows the person, where the rate limit only follows the connection. 1–50."
+          >
+            <Input
+              id="maxAttempts"
+              type="number"
+              min={1}
+              max={50}
+              step={1}
+              value={settings.maxCardAddAttemptsPerDay}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                mutate((d) => {
+                  d.maxCardAddAttemptsPerDay = n;
+                });
+              }}
+            />
+          </Field>
+
+          <Field
+            label="Block booking above this unpaid balance"
+            htmlFor="debtBlock"
+            hint="The cap on blast radius — what stops one bad card funding ten rides. 0 = block on any settled debt."
+          >
+            <Input
+              id="debtBlock"
+              type="number"
+              min={0}
+              max={1000}
+              step={1}
+              value={settings.blockBookingWhenDebtExceedsPence / 100}
+              onChange={(e) => {
+                const pounds = Number(e.target.value);
+                mutate((d) => {
+                  d.blockBookingWhenDebtExceedsPence = Math.round(pounds * 100);
+                });
+              }}
+            />
+          </Field>
+        </div>
+
+        <p className="mt-1 text-xs text-ink-faint">
+          Saved and editable now, but nothing reads them yet — they take effect with the
+          card payment release.
+        </p>
       </Card>
 
       {/* These two checkboxes are quietly enormous. Say so, next to them, rather

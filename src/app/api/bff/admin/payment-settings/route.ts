@@ -1,11 +1,15 @@
 import type { NextRequest } from "next/server";
 import { proxyAuthed, ADMIN_COOKIE } from "@/lib/server/bff";
 
-// GET the global payment toggles (public on the API — both mobile apps read it
-// before sign-in — routed through the admin BFF for a consistent same-origin
-// admin surface, exactly as the fare chart is).
+// GET the FULL settings document, including the fraud thresholds.
+//
+// Deliberately not the anonymous `/api/v1/payment-settings`, which returns the
+// three method fields only: publishing "5 card attempts a day, bookings blocked
+// above this much debt" would hand an attacker the shape of every limit they
+// need to stay under. The admin portal is the one caller that may see them, and
+// the API enforces SuperAdmin on this route.
 export async function GET(req: NextRequest) {
-  return proxyAuthed(req, "/api/v1/payment-settings", "GET", ADMIN_COOKIE);
+  return proxyAuthed(req, "/api/v1/payment-settings/admin", "GET", ADMIN_COOKIE);
 }
 
 // Publish new settings — SuperAdmin only (enforced by the API).

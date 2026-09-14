@@ -333,12 +333,43 @@ export const fareChart = {
 
 export type PaymentMethodName = "Cash" | "Card";
 
+/**
+ * The FULL settings document, as the admin portal sees it.
+ *
+ * The anonymous endpoint the mobile apps read returns only the three method
+ * fields; everything below it is admin-only on purpose, so the platform does
+ * not publish the exact limits an attacker would want to stay under. Web only
+ * ever talks to the admin endpoint, so one interface covers it.
+ */
 export interface PaymentSettings {
   cashEnabled: boolean;
   cardEnabled: boolean;
   /** Which method the apps preselect. Never names a disabled method — the API
    *  corrects it on write rather than rejecting the change. */
   defaultMethod: PaymentMethodName;
+
+  // ── Step-up verification. Stored and editable now; read by the charge
+  //    pipeline once Stripe lands. Triggered by risk, never by a calendar.
+
+  /** Re-confirm with the bank when a customer signs in on an unseen device. */
+  challengeOnNewDevice: boolean;
+  /** Re-confirm before booking again after a charge failed. */
+  challengeAfterFailedCharge: boolean;
+  /** Only challenge cards that were never properly authenticated when saved. */
+  challengeUnauthenticatedCards: boolean;
+  /** Fare above which the rule above applies, in pence. 0 = always. */
+  challengeAboveFarePence: number;
+  /** Re-verify when an account wakes after this many idle days. 0 = off. */
+  reverifyAfterDormantDays: number;
+
+  // ── Limits.
+
+  /** A real customer needs two or three; a card tester needs hundreds. */
+  maxSavedCardsPerCustomer: number;
+  /** Card-add attempts per customer per day, failures included. */
+  maxCardAddAttemptsPerDay: number;
+  /** Unpaid balance above which new bookings are refused, in pence. */
+  blockBookingWhenDebtExceedsPence: number;
 }
 
 export interface DriverPaymentOptions {
@@ -353,9 +384,9 @@ export interface DriverPaymentOptions {
 }
 
 export const paymentSettings = {
-  /** The current global toggles. */
+  /** The full settings document, fraud thresholds included (SuperAdmin only). */
   get: () => bff<PaymentSettings>("GET", "/admin/payment-settings"),
-  /** Publish new toggles (SuperAdmin only). At least one method must stay on. */
+  /** Publish new settings (SuperAdmin only). At least one method must stay on. */
   update: (settings: PaymentSettings) =>
     bff<PaymentSettings>("PUT", "/admin/payment-settings", settings),
 
