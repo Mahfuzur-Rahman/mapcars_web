@@ -927,7 +927,10 @@ export interface AdminStats {
   activeTrips: number;
   tripsToday: number;
   completedTripsToday: number;
+  /** Platform commission on today's completed trips — our money. */
   revenueTodayGbp: number;
+  /** Total fares charged on today's completed trips (gross bookings). */
+  grossFaresTodayGbp: number;
 }
 
 export type TripStatusName =

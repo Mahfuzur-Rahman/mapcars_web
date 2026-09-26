@@ -82,6 +82,11 @@ export default function AdminDashboard() {
     {
       label: "Revenue today",
       value: stats ? gbp(stats.revenueTodayGbp) : "—",
+      // Revenue is commission only; the gross figure is context, not ours.
+      hint:
+        stats?.grossFaresTodayGbp != null
+          ? `Commission on ${gbp(stats.grossFaresTodayGbp)} fares`
+          : undefined,
       tone: "positive",
       icon: "banknote",
     },
