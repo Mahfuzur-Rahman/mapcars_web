@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 const POINTS = [
   {
     title: "Upfront pricing",
-    desc: "See your fare before you book — it never changes mid-trip.",
+    desc: "See your fare before you book.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="1" x2="12" y2="23" />
@@ -15,7 +15,7 @@ const POINTS = [
   },
   {
     title: "Verified drivers",
-    desc: "Every driver is licence-checked and rated by customers.",
+    desc: "Every driver is document-checked and approved before their first trip.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -25,7 +25,7 @@ const POINTS = [
   },
   {
     title: "Live tracking",
-    desc: "Follow your ride in real time and share it with friends.",
+    desc: "Follow your driver on the map in real time.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -93,7 +93,7 @@ export default function AuthShell({
             <span />
             <span />
           </div>
-          Joining 10,000+ customers on the South Coast waitlist
+          Launching across the South Coast
         </div>
       </aside>
 

@@ -1,7 +1,6 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
 
 interface Location {
   city: string;
@@ -31,14 +30,16 @@ const OTHERS: Location[] = [
   { city: "Hove", landmark: "Elegant Regency Seafront", img: "hove", c1: "#1A1A3E", c2: "#2E2E6A" },
 ];
 
+// Honest, non-numeric highlights. The one number is counted from the town
+// list rendered above, so it can never drift from what the page shows.
+// Don't put driver, waitlist or availability counts here unless the API
+// supplies them.
 const STATS = [
-  { target: 13, suffix: "", label: "Launch Zones" },
-  { target: 500, suffix: "+", label: "Drivers Onboarding" },
-  { target: 10, suffix: "K+", label: "Waitlist Signups" },
-  { target: 24, suffix: "/7", label: "Availability" },
+  { value: String(HUBS.length + OTHERS.length), label: "Towns in our launch area" },
+  { value: "Upfront", label: "Fare shown before you book" },
+  { value: "Vetted", label: "Drivers approved before going online" },
+  { value: "Local", label: "Based in Chichester" },
 ];
-
-const COUNTER_DURATION_MS = 2000;
 
 function PinIcon() {
   return (
@@ -74,52 +75,15 @@ function LocationCard({ loc, hub }: { loc: Location; hub?: boolean }) {
 }
 
 function StatsRow() {
-  const rowRef = useRef<HTMLDivElement>(null);
-  const [values, setValues] = useState(() => STATS.map(() => 0));
-  const animatedRef = useRef(false);
-
-  useEffect(() => {
-    const row = rowRef.current;
-    if (!row) return;
-
-    const animate = () => {
-      const start = performance.now();
-      const update = (now: number) => {
-        const progress = Math.min((now - start) / COUNTER_DURATION_MS, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setValues(STATS.map((s) => Math.round(eased * s.target)));
-        if (progress < 1) requestAnimationFrame(update);
-      };
-      requestAnimationFrame(update);
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !animatedRef.current) {
-            animatedRef.current = true;
-            animate();
-          }
-        });
-      },
-      { threshold: 0.2 },
-    );
-    observer.observe(row);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <div className="stats-row" id="stats-row" ref={rowRef}>
+    <div className="stats-row" id="stats-row">
       {STATS.map((stat, i) => (
         <div
           key={stat.label}
           className="stat-card fade-in"
           style={{ transitionDelay: `${i * 0.1}s` }}
         >
-          <span className="stat-number">
-            {values[i]}
-            {stat.suffix}
-          </span>
+          <span className="stat-number">{stat.value}</span>
           <span className="stat-label">{stat.label}</span>
         </div>
       ))}

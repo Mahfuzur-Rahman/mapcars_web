@@ -683,6 +683,22 @@
     box-shadow: 0 10px 30px rgba(0, 185, 217, 0.15);
 }
 
+/* Not a link yet: no hover lift, no pointer, so it doesn't promise a click. */
+.platform-badge.is-soon { cursor: default; }
+.platform-badge.is-soon:hover {
+    background: var(--bg-glass);
+    border-color: var(--border);
+    transform: none;
+    box-shadow: none;
+}
+
+.platform-preview-note {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
 .badge-icon {
     color: var(--text-primary);
     display: flex;

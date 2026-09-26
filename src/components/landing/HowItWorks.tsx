@@ -14,8 +14,8 @@ const CUSTOMER_STEPS: Step[] = [
   {
     num: "01",
     title: "Request in Seconds",
-    desc: "Enter your pickup location and destination. Choose your preferred ride option and see guaranteed upfront fares before booking.",
-    highlight: "Upfront Fixed Pricing",
+    desc: "Enter your pickup location and destination. Choose your preferred ride option and see your fare before you book.",
+    highlight: "Upfront Pricing",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28">
         <circle cx="11" cy="11" r="8" />
@@ -39,8 +39,8 @@ const CUSTOMER_STEPS: Step[] = [
   {
     num: "03",
     title: "Enjoy & Arrive Safely",
-    desc: "Hop into a clean, comfortable vehicle. Pay effortlessly via card or mobile wallet, and rate your driver when you arrive.",
-    highlight: "Cashless & Secure",
+    desc: "Hop in and relax. Pay your driver in cash at drop-off (card payments are on the way), and rate your trip when you arrive.",
+    highlight: "Rate Every Trip",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28">
         <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -77,9 +77,9 @@ const DRIVER_STEPS: Step[] = [
   },
   {
     num: "03",
-    title: "Earn & Get Paid Daily",
-    desc: "Keep more of what you earn with our low commission rate. Cash out directly to your bank account with fast daily payouts.",
-    highlight: "Low Commission Rate",
+    title: "Earn on Every Trip",
+    desc: "See what each trip pays before you accept it. You collect cash fares at drop-off; bank payouts for card trips start when card payments launch.",
+    highlight: "Clear Earnings",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28">
         <line x1="12" y1="1" x2="12" y2="23" />

@@ -44,7 +44,13 @@ export default function PhoneMockup() {
     `pscreen${i === current ? " active" : ""}${i === exiting ? " exiting" : ""}`;
 
   return (
-    <div className="css-phone iphone" id="iphone-phone">
+    // Illustrative preview only: sample names and prices, not live data.
+    <div
+      className="css-phone iphone"
+      id="iphone-phone"
+      role="img"
+      aria-label="Illustrative preview of the MapCars customer app"
+    >
       <div className="phone-notch"></div>
       <div className="phone-screen">
         <div className="screen-status-bar">
@@ -72,7 +78,7 @@ export default function PhoneMockup() {
           <div className={screenClass(0)}>
             <div className="screen-app">
               <div className="app-header">
-                <div className="app-logo-small">B</div>
+                <div className="app-logo-small">M</div>
                 <span className="app-title">MapCars</span>
                 <div className="app-avatar"></div>
               </div>
@@ -105,7 +111,7 @@ export default function PhoneMockup() {
           <div className={screenClass(1)}>
             <div className="screen-app">
               <div className="app-header">
-                <div className="app-logo-small">B</div>
+                <div className="app-logo-small">M</div>
                 <span className="app-title">On the way</span>
                 <div className="live-badge">LIVE</div>
               </div>
@@ -141,13 +147,13 @@ export default function PhoneMockup() {
           <div className={screenClass(2)}>
             <div className="screen-app">
               <div className="app-header">
-                <div className="app-logo-small">B</div>
+                <div className="app-logo-small">M</div>
                 <span className="app-title">Rate your ride</span>
               </div>
               <div className="rate-hero">
                 <div className="rate-avatar"></div>
                 <div className="rate-name">James M.</div>
-                <div className="rate-trip-info">Portsmouth → Brighton</div>
+                <div className="rate-trip-info">Chichester → Bognor Regis</div>
                 <div className="rate-price-big">£12.50</div>
               </div>
               <div className="stars-row">
@@ -170,7 +176,7 @@ export default function PhoneMockup() {
           <div className={screenClass(3)}>
             <div className="screen-app">
               <div className="app-header">
-                <div className="app-logo-small">B</div>
+                <div className="app-logo-small">M</div>
                 <span className="app-title">My Trips</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" />
@@ -184,8 +190,8 @@ export default function PhoneMockup() {
                   <div className="trip-line-v"></div>
                   <div className="trip-dot end"></div>
                   <div className="trip-locations">
-                    <span>Portsmouth</span>
-                    <span>Brighton</span>
+                    <span>Chichester</span>
+                    <span>Bognor Regis</span>
                   </div>
                 </div>
                 <div className="trip-driver">
@@ -204,8 +210,8 @@ export default function PhoneMockup() {
                   <div className="trip-line-v"></div>
                   <div className="trip-dot end"></div>
                   <div className="trip-locations">
-                    <span>Fareham</span>
-                    <span>Southampton</span>
+                    <span>Havant</span>
+                    <span>Portsmouth</span>
                   </div>
                 </div>
                 <div className="trip-price-row">
@@ -220,19 +226,19 @@ export default function PhoneMockup() {
           <div className={screenClass(4)}>
             <div className="screen-app">
               <div className="app-header">
-                <div className="app-logo-small">B</div>
-                <span className="app-title">Wallet</span>
+                <div className="app-logo-small">M</div>
+                <span className="app-title">Receipts</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                   <rect x="2" y="5" width="20" height="14" rx="2" />
                   <line x1="2" y1="10" x2="22" y2="10" />
                 </svg>
               </div>
               <div className="wallet-balance-card">
-                <div className="wallet-label">MapCars Credits</div>
-                <div className="wallet-amount">£24.00</div>
-                <div className="wallet-sub">+£5 bonus this week</div>
+                <div className="wallet-label">Last trip</div>
+                <div className="wallet-amount">£12.50</div>
+                <div className="wallet-sub">Paid in cash · receipt saved</div>
               </div>
-              <div className="wallet-section-title">Recent Transactions</div>
+              <div className="wallet-section-title">Recent trips</div>
               <div className="wallet-txn">
                 <div className="txn-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
@@ -254,10 +260,10 @@ export default function PhoneMockup() {
                   </svg>
                 </div>
                 <div className="txn-info">
-                  <span className="txn-name">Top Up</span>
+                  <span className="txn-name">Ride · Chichester</span>
                   <span className="txn-date">Yesterday</span>
                 </div>
-                <span className="txn-amount plus">+£20.00</span>
+                <span className="txn-amount minus">-£9.80</span>
               </div>
               <div className="wallet-txn">
                 <div className="txn-icon">
@@ -279,7 +285,7 @@ export default function PhoneMockup() {
           <div className={screenClass(5)}>
             <div className="screen-app">
               <div className="app-header">
-                <div className="app-logo-small">B</div>
+                <div className="app-logo-small">M</div>
                 <span className="app-title">Profile</span>
               </div>
               <div className="profile-hero">
@@ -315,7 +321,7 @@ export default function PhoneMockup() {
                   <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
                   <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
                 </svg>
-                <span>Referral Rewards</span>
+                <span>Saved places</span>
                 <span className="chevron">›</span>
               </div>
             </div>
