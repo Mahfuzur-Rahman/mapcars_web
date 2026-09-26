@@ -27,11 +27,10 @@ mapbox.com → Account → *Access tokens* → copy the default public token.
 
 ### How to get the Google client ID ("Continue with Google")
 
-The button is already on `/auth/login` and `/auth/signup` and is fully wired
-(Google Identity Services → ID token → `/api/bff/rider/google` →
-`POST /api/v1/auth/riders/google`). It is **not functional yet**: with no client
-ID, clicking it says "Google sign-in isn't set up yet" rather than failing
-silently.
+The button is on `/auth/login` and `/auth/signup` and is fully wired
+(Google Identity Services → ID token → `/api/bff/auth/google` →
+`POST /api/v1/auth/google`, which detects customer vs driver). With no client
+ID in the build, the button and its "or" divider are simply not rendered.
 
 1. Google Cloud console (project `mapcars-2b5a8`) → *APIs & Services →
    Credentials* → create an **OAuth client ID → Web application**.

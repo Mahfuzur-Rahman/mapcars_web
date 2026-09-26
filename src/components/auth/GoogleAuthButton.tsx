@@ -2,8 +2,9 @@
 
 // "Continue with Google" for the unified Mapcars web sign-in flow.
 //
-// When `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set we hand off to Google Identity
-// Services, which renders its own official button and gives us an ID token; we
+// Renders NOTHING (not even the "or" divider) unless `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+// was set at build time — a button that can only say "not set up yet" is worse
+// than no button. When it is set we hand off to Google Identity Services, which renders its own official button and gives us an ID token; we
 // post that to `/api/bff/auth/google` → `POST /api/v1/auth/google`,
 // which detects Driver vs Customer accounts, sets the appropriate httpOnly cookie,
 // and routes the user to /driver or /account.
@@ -76,9 +77,11 @@ interface Props {
   onError: (message: string) => void;
   /** "continue_with" on login, "signup_with" on the create-account page. */
   intent?: "signin" | "signup";
+  /** Optional line under the button; hidden along with it when Google isn't configured. */
+  hint?: React.ReactNode;
 }
 
-export default function GoogleAuthButton({ onError, intent = "signin" }: Props) {
+export default function GoogleAuthButton({ onError, intent = "signin", hint }: Props) {
   const router = useRouter();
   const slotRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -182,6 +185,9 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
 
   const label = intent === "signup" ? "Sign up with Google" : "Continue with Google";
 
+  // NEXT_PUBLIC_* is inlined at build time, so this is a constant per build.
+  if (!clientId) return null;
+
   return (
     <>
       <div className="auth-social">
@@ -192,24 +198,21 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
         {/* Google renders its official button in here once GIS has loaded. */}
         <div ref={slotRef} className="auth-google-slot" aria-live="polite" />
 
-        {/* Shown until GIS renders — and permanently while no client ID is set. */}
+        {/* Placeholder until GIS has rendered its official button. */}
         {!rendered && (
           <button
             type="button"
             className="auth-google"
             disabled={busy}
             onClick={() =>
-              onError(
-                clientId
-                  ? "Google sign-in is still loading — please try again in a moment."
-                  : "Google sign-in isn't set up yet. Please use email or phone for now.",
-              )
+              onError("Google sign-in is still loading — please try again in a moment.")
             }
           >
             <GoogleMark />
             <span>{label}</span>
           </button>
         )}
+        {hint && <p className="auth-hint auth-social-hint">{hint}</p>}
       </div>
 
       {/* Role disambiguation modal for Google auth */}
@@ -235,7 +238,7 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
                 onClick={() => void signIn(pendingToken, "customer")}
                 className="w-full rounded-xl border border-zinc-200 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
               >
-                Sign in as Customer (Customer)
+                Sign in as Customer
               </button>
               <button
                 type="button"

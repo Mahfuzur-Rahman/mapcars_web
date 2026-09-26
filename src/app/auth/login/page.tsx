@@ -288,10 +288,11 @@ export default function LoginPage() {
             </form>
           )}
 
-          <GoogleAuthButton onError={setError} intent="signin" />
-          <p className="auth-hint auth-social-hint">
-            Google sign-in works for both Customer and Driver Partner accounts.
-          </p>
+          <GoogleAuthButton
+            onError={setError}
+            intent="signin"
+            hint="Google sign-in works for both Customer and Driver Partner accounts."
+          />
         </>
       )}
 
