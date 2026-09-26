@@ -81,15 +81,37 @@ function cookieOptions(maxAgeSeconds: number) {
   };
 }
 
+/**
+ * The visitor's address chain, as our reverse proxy reported it.
+ *
+ * The API rate-limits anonymous and credential endpoints per client IP (its
+ * `ClientKey` reads X-Forwarded-For first). In production the BFF reaches the
+ * API container directly (`API_INTERNAL_URL`), so without this every web
+ * visitor shares ONE bucket — the web container's — and five contact-form or
+ * forgot-password submissions site-wide would lock everyone out for 15 minutes.
+ *
+ * Forwarding it is no weaker than today: anyone can already call the API
+ * directly with any X-Forwarded-For they like. It is rate-limit keying only,
+ * never an authorisation input.
+ */
+function clientIpOf(req: NextRequest): string | undefined {
+  const forwarded = req.headers.get("x-forwarded-for")?.trim();
+  if (forwarded) return forwarded;
+  const real = req.headers.get("x-real-ip")?.trim();
+  return real || undefined;
+}
+
 async function callApi(
   path: string,
   method: string,
   body?: unknown,
   token?: string,
+  clientIp?: string,
 ): Promise<Response> {
   if (!API_BASE) throw new Error("API base URL is not configured");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (clientIp) headers["X-Forwarded-For"] = clientIp;
   console.log(`[BFF] Calling API: ${method} ${API_BASE}${path}`);
   return fetch(`${API_BASE}${path}`, {
     method,
@@ -166,7 +188,7 @@ async function renewSession(req: NextRequest, cookieName: string): Promise<Renew
   if (!refreshToken) return null;
 
   try {
-    const apiRes = await callApi("/api/v1/auth/refresh", "POST", { refreshToken });
+    const apiRes = await callApi("/api/v1/auth/refresh", "POST", { refreshToken }, undefined, clientIpOf(req));
     if (!apiRes.ok) return null;
 
     const data = await readJson(apiRes);
@@ -211,8 +233,13 @@ function clearSessionCookies(res: NextResponse, cookieName: string): void {
 export async function proxyPublic(req: NextRequest, apiPath: string): Promise<NextResponse> {
   try {
     const body = await req.json().catch(() => ({}));
-    const apiRes = await callApi(apiPath, "POST", body);
-    return NextResponse.json(await readJson(apiRes), { status: apiRes.status });
+    const apiRes = await callApi(apiPath, "POST", body, undefined, clientIpOf(req));
+    const data = await readJson(apiRes);
+    // 202/204 (and a bare 429 from the rate limiter) carry no body. Serialising
+    // that as JSON `null` is not just untidy: a 204 with any body at all makes
+    // the Response constructor throw.
+    if (!data) return new NextResponse(null, { status: apiRes.status });
+    return NextResponse.json(data, { status: apiRes.status });
   } catch (reason) {
     return upstreamError(reason);
   }
@@ -238,7 +265,7 @@ export async function proxyLogin(
 ): Promise<NextResponse> {
   try {
     const body = await req.json().catch(() => ({}));
-    const apiRes = await callApi(apiPath, "POST", body);
+    const apiRes = await callApi(apiPath, "POST", body, undefined, clientIpOf(req));
     const data = await readJson(apiRes);
     if (!apiRes.ok || !data) {
       return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
@@ -261,7 +288,7 @@ export async function proxyRoleLogin(
 ): Promise<NextResponse> {
   try {
     const body = await req.json().catch(() => ({}));
-    const apiRes = await callApi(apiPath, "POST", body);
+    const apiRes = await callApi(apiPath, "POST", body, undefined, clientIpOf(req));
     const data = await readJson(apiRes);
     if (!apiRes.ok || !data) {
       return NextResponse.json(data ?? { message: "Request failed" }, { status: apiRes.status });
@@ -329,7 +356,7 @@ async function proxyAuthedWith(
     // cannot be consumed twice.
     const body = hasBody ? await req.json().catch(() => ({})) : undefined;
 
-    let apiRes = await callApi(apiPath, method, body, token);
+    let apiRes = await callApi(apiPath, method, body, token, clientIpOf(req));
     let renewal = pendingRenewal;
 
     // Expired mid-session. A 401 means the API did not act on the request, so
@@ -338,7 +365,7 @@ async function proxyAuthedWith(
       const renewed = await renewSession(req, cookieName);
       if (renewed) {
         renewal = renewed;
-        apiRes = await callApi(apiPath, method, body, renewed.token);
+        apiRes = await callApi(apiPath, method, body, renewed.token, clientIpOf(req));
       }
     }
 
@@ -463,7 +490,7 @@ export async function proxyLogout(req: NextRequest, cookieName: string): Promise
   const refreshToken = readRefreshCookie(req, cookieName);
   if (refreshToken) {
     try {
-      await callApi("/api/v1/auth/logout", "POST", { refreshToken });
+      await callApi("/api/v1/auth/logout", "POST", { refreshToken }, undefined, clientIpOf(req));
     } catch {
       /* local sign-out proceeds regardless */
     }

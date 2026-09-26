@@ -46,12 +46,22 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
     }
 
     if (!res.ok) {
-      let message = `HTTP ${res.status}`;
+      let message =
+        res.status === 429
+          ? "Too many attempts. Please wait a few minutes and try again."
+          : `HTTP ${res.status}`;
       try {
-        const err = (await res.json()) as Record<string, string>;
-        message = err.detail ?? err.message ?? err.title ?? message;
+        const err = (await res.json()) as Record<string, unknown> | null;
+        if (err) {
+          message =
+            str(err.detail) ??
+            str(err.message) ??
+            firstValidationMessage(err.errors) ??
+            str(err.title) ??
+            message;
+        }
       } catch {
-        /* not JSON */
+        /* not JSON (or empty — the rate limiter sends a bare 429) */
       }
       throw new ApiError(res.status, message);
     }
@@ -62,6 +72,23 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
   } finally {
     if (isBrowser) hideTopProgress();
   }
+}
+
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.trim() !== "" ? v : undefined;
+
+/**
+ * The API's 400 for a failed FluentValidation run is
+ * `{ title: "Validation failed", errors: { Field: ["message", …] } }`. The
+ * title on its own tells the user nothing, so surface the actual rule messages
+ * ("Password must contain at least one digit.") instead.
+ */
+function firstValidationMessage(errors: unknown): string | undefined {
+  if (!errors || typeof errors !== "object") return undefined;
+  const messages = Object.values(errors as Record<string, unknown>)
+    .flatMap((v) => (Array.isArray(v) ? v : [v]))
+    .filter((m): m is string => typeof m === "string" && m.trim() !== "");
+  return messages.length ? messages.slice(0, 3).join(" ") : undefined;
 }
 
 // Same-origin BFF call — the session cookie rides along automatically.
