@@ -1188,6 +1188,63 @@ export const adminMoney = {
   },
 };
 
+// ── Driver statements  (BFF: /api/bff/admin/statements) — SuperAdmin or Admin ─
+// Mirrors Mapcars.Application.Statements.Dtos. Money is INTEGER PENCE here
+// (unlike the GBP-decimal DTOs above). One statement per driver per UK week
+// (Mon 00:00 Europe/London → next Mon). Signed amounts are platform→driver:
+// > 0 Mapcars owes the driver; < 0 the driver owes commission on cash fares.
+
+export type StatementStatus = "Issued" | "Settled";
+
+export interface DriverStatementSummary {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  periodStartUtc: string;
+  /** Exclusive: the following Monday 00:00 London. */
+  periodEndUtc: string;
+  tripCount: number;
+  grossFaresPence: number;
+  tipsPence: number;
+  commissionPence: number;
+  driverEarningsPence: number;
+  cardPayablePence: number;
+  cashCommissionOwedPence: number;
+  netPence: number;
+  status: StatementStatus | string;
+  createdAtUtc: string;
+}
+
+export interface DriverStatementLine {
+  tripId: string;
+  completedAtUtc: string;
+  paymentMethod: PaymentMethodName | string;
+  farePence: number;
+  tipPence: number;
+  commissionPence: number;
+  driverEarningsPence: number;
+  amountPence: number;
+}
+
+export interface DriverStatementDetail {
+  summary: DriverStatementSummary;
+  lines: DriverStatementLine[];
+}
+
+export const adminStatements = {
+  /** Newest week first. `periodStart` (UTC instant of a week start) narrows to one week. */
+  list: (opts: { periodStart?: string; skip?: number; take?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.periodStart) q.set("periodStart", opts.periodStart);
+    q.set("skip", String(opts.skip ?? 0));
+    q.set("take", String(opts.take ?? 50));
+    return bff<DriverStatementSummary[]>("GET", `/admin/statements?${q}`);
+  },
+
+  get: (id: string) =>
+    bff<DriverStatementDetail>("GET", `/admin/statements/${encodeURIComponent(id)}`),
+};
+
 // ── Posters  (BFF: /api/bff/admin/posters) — SuperAdmin or Admin ────────────
 // Landing-page promo banners. Admin CRUD goes through the BFF; the image and
 // the active-poster list are public/unauthenticated on the API, so the
