@@ -82,23 +82,29 @@ function cookieOptions(maxAgeSeconds: number) {
 }
 
 /**
- * The visitor's address chain, as our reverse proxy reported it.
+ * The visitor's real address, as OUR reverse proxy saw it.
  *
- * The API rate-limits anonymous and credential endpoints per client IP (its
- * `ClientKey` reads X-Forwarded-For first). In production the BFF reaches the
- * API container directly (`API_INTERNAL_URL`), so without this every web
- * visitor shares ONE bucket — the web container's — and five contact-form or
- * forgot-password submissions site-wide would lock everyone out for 15 minutes.
+ * The API rate-limits anonymous and credential endpoints per client IP. In
+ * production the BFF reaches the API container directly (`API_INTERNAL_URL`),
+ * so without this every web visitor shares ONE bucket — the web container's —
+ * and five contact-form or forgot-password submissions site-wide would lock
+ * everyone out for 15 minutes.
  *
- * Forwarding it is no weaker than today: anyone can already call the API
- * directly with any X-Forwarded-For they like. It is rate-limit keying only,
- * never an authorisation input.
+ * Only the address Nginx itself observed is forwarded: `X-Real-IP` (Nginx
+ * overwrites it with `$remote_addr`), else the RIGHT-most `X-Forwarded-For`
+ * entry (Nginx appends, so everything to its left is whatever the browser sent).
+ * The API trusts this header only from private hops and unwinds exactly one, so
+ * a visitor can't pick their own rate-limit bucket through the web app either.
  */
 function clientIpOf(req: NextRequest): string | undefined {
-  const forwarded = req.headers.get("x-forwarded-for")?.trim();
-  if (forwarded) return forwarded;
   const real = req.headers.get("x-real-ip")?.trim();
-  return real || undefined;
+  if (real) return real;
+  const hops = req.headers
+    .get("x-forwarded-for")
+    ?.split(",")
+    .map((h) => h.trim())
+    .filter(Boolean);
+  return hops && hops.length > 0 ? hops[hops.length - 1] : undefined;
 }
 
 async function callApi(
