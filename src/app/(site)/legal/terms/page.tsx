@@ -4,7 +4,7 @@ import { PageHero, Section } from "@/components/site/ui";
 export const metadata: Metadata = {
   title: "Terms of Service — MapCars",
   description:
-    "The terms that govern your use of the MapCars rider and driver apps and related services.",
+    "The terms that govern your use of the MapCars customer and driver apps and related services.",
 };
 
 export default function TermsPage() {
@@ -21,7 +21,7 @@ export default function TermsPage() {
         <div className="doc">
           <div className="doc-lead">
             These Terms of Service (&ldquo;Terms&rdquo;) govern your access to
-            and use of the <strong>MapCars</strong> rider and driver apps and
+            and use of the <strong>MapCars</strong> customer and driver apps and
             related services (together, the &ldquo;Service&rdquo;), operated by{" "}
             <strong>MAP CARS CHI LTD</strong> (company number <strong>15837715</strong>,
             registered in England and Wales and headquartered in Chichester, West Sussex).
@@ -47,7 +47,7 @@ export default function TermsPage() {
 
           <h2>3. Booking and rides</h2>
           <p>
-            MapCars connects riders with independent, licensed drivers. When you
+            MapCars connects customers with independent, licensed drivers. When you
             book, you enter into a direct arrangement for that ride. We show the
             fare up front; the quoted price applies unless the trip changes
             materially (for example, a new destination or added stops).
@@ -70,7 +70,7 @@ export default function TermsPage() {
 
           <h2>6. Acceptable use</h2>
           <ul>
-            <li>Treat drivers, riders, and staff with respect.</li>
+            <li>Treat drivers, customers, and staff with respect.</li>
             <li>Do not use the Service for anything unlawful or unsafe.</li>
             <li>Do not misuse, disrupt, or attempt to gain unauthorised access to the Service.</li>
             <li>Do not damage vehicles or leave them in an unreasonable state.</li>
@@ -88,7 +88,7 @@ export default function TermsPage() {
           <p>
             Nothing in these Terms limits liability that cannot be limited by
             law. Subject to that, MapCars is not liable for the acts or
-            omissions of independent drivers or riders, and our liability for the
+            omissions of independent drivers or customers, and our liability for the
             Service is limited to the extent permitted by law.
           </p>
 

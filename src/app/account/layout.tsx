@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { riderAuth, type RiderProfileResponse } from "@/lib/api";
+import { customerAuth, type CustomerProfileResponse } from "@/lib/api";
 import { AppShell, type NavNode } from "@/components/ui";
 
 const NAV: NavNode[] = [
@@ -16,17 +16,17 @@ const NAV: NavNode[] = [
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [profile, setProfile] = useState<RiderProfileResponse | null>(null);
+  const [profile, setProfile] = useState<CustomerProfileResponse | null>(null);
 
-  // Non-blocking: the sidebar renders immediately and fills in the rider's
+  // Non-blocking: the sidebar renders immediately and fills in the customer's
   // name once it arrives. proxy.ts already guards this route.
   useEffect(() => {
-    riderAuth.getProfile().then(setProfile).catch(() => {});
+    customerAuth.getProfile().then(setProfile).catch(() => {});
   }, []);
 
   async function signOut() {
     try {
-      await riderAuth.logout();
+      await customerAuth.logout();
     } finally {
       router.replace("/auth/login");
       router.refresh();
@@ -35,9 +35,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
 
   return (
     <AppShell
-      tone="rider"
+      tone="customer"
       nav={NAV}
-      user={{ name: profile?.fullName ?? "Rider", meta: profile?.email }}
+      user={{ name: profile?.fullName ?? "Customer", meta: profile?.email }}
       onSignOut={signOut}
     >
       {children}

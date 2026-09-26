@@ -2,26 +2,26 @@
 
 import { useEffect, useState } from "react";
 import {
-  riderDocuments,
+  customerDocuments,
   ApiError,
   type DocumentSummary,
-  type RiderDocumentType,
+  type CustomerDocumentType,
 } from "@/lib/api";
 
-const TYPES: { value: RiderDocumentType; label: string }[] = [
+const TYPES: { value: CustomerDocumentType; label: string }[] = [
   { value: "ProofOfIdentity", label: "Proof of identity" },
   { value: "ProofOfAddress", label: "Proof of address" },
 ];
 
-export default function RiderDocumentsPage() {
+export default function CustomerDocumentsPage() {
   const [docs, setDocs] = useState<DocumentSummary[] | null>(null);
-  const [type, setType] = useState<RiderDocumentType>("ProofOfIdentity");
+  const [type, setType] = useState<CustomerDocumentType>("ProofOfIdentity");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function refresh() {
-    riderDocuments
+    customerDocuments
       .list()
       .then(setDocs)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load documents"));
@@ -35,7 +35,7 @@ export default function RiderDocumentsPage() {
     setUploading(true);
     setError(null);
     try {
-      await riderDocuments.upload(type, file);
+      await customerDocuments.upload(type, file);
       setFile(null);
       refresh();
     } catch (err) {
@@ -62,7 +62,7 @@ export default function RiderDocumentsPage() {
           <label className="mb-1 block text-xs font-medium text-zinc-500">Document type</label>
           <select
             value={type}
-            onChange={(e) => setType(e.target.value as RiderDocumentType)}
+            onChange={(e) => setType(e.target.value as CustomerDocumentType)}
             className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
           >
             {TYPES.map((t) => (

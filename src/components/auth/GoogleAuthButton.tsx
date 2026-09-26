@@ -5,7 +5,7 @@
 // When `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set we hand off to Google Identity
 // Services, which renders its own official button and gives us an ID token; we
 // post that to `/api/bff/auth/google` → `POST /api/v1/auth/google`,
-// which detects Driver vs Rider accounts, sets the appropriate httpOnly cookie,
+// which detects Driver vs Customer accounts, sets the appropriate httpOnly cookie,
 // and routes the user to /driver or /account.
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -105,7 +105,7 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
   );
 
   const signIn = useCallback(
-    async (idToken: string, loginAs?: "rider" | "driver") => {
+    async (idToken: string, loginAs?: "customer" | "driver") => {
       setBusy(true);
       onError("");
       try {
@@ -232,10 +232,10 @@ export default function GoogleAuthButton({ onError, intent = "signin" }: Props) 
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void signIn(pendingToken, "rider")}
+                onClick={() => void signIn(pendingToken, "customer")}
                 className="w-full rounded-xl border border-zinc-200 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
               >
-                Sign in as Customer (Rider)
+                Sign in as Customer (Customer)
               </button>
               <button
                 type="button"

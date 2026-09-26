@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { proxyAuthed, RIDER_COOKIE } from "@/lib/server/bff";
+import { proxyAuthed, CUSTOMER_COOKIE } from "@/lib/server/bff";
 
 // Update an existing saved place.
 export async function PUT(
@@ -7,7 +7,7 @@ export async function PUT(
   ctx: RouteContext<"/api/bff/saved-places/[id]">,
 ) {
   const { id } = await ctx.params;
-  return proxyAuthed(req, `/api/v1/saved-places/${id}`, "PUT", RIDER_COOKIE);
+  return proxyAuthed(req, `/api/v1/saved-places/${id}`, "PUT", CUSTOMER_COOKIE);
 }
 
 // Delete a saved place.
@@ -16,5 +16,5 @@ export async function DELETE(
   ctx: RouteContext<"/api/bff/saved-places/[id]">,
 ) {
   const { id } = await ctx.params;
-  return proxyAuthed(req, `/api/v1/saved-places/${id}`, "DELETE", RIDER_COOKIE);
+  return proxyAuthed(req, `/api/v1/saved-places/${id}`, "DELETE", CUSTOMER_COOKIE);
 }

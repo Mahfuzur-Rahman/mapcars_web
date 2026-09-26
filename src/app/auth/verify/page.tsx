@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { riderAuth, ApiError, type RiderSession } from "@/lib/api";
+import { customerAuth, ApiError, type CustomerSession } from "@/lib/api";
 import { env } from "@/lib/env";
 
 // Codes expire 3 minutes after they're issued (matches the API).
@@ -66,11 +66,11 @@ function VerifyForm() {
     setLoading(true);
     setError(null);
     try {
-      let res: RiderSession;
+      let res: CustomerSession;
       if (phone) {
-        res = await riderAuth.verifyPhone(phone, code);
+        res = await customerAuth.verifyPhone(phone, code);
       } else if (email) {
-        res = await riderAuth.verifyEmail(email, code);
+        res = await customerAuth.verifyEmail(email, code);
       } else {
         setError("Missing phone or email");
         return;
@@ -90,8 +90,8 @@ function VerifyForm() {
     setInfo(null);
     try {
       const res = phone
-        ? await riderAuth.sendOtp(phone)
-        : await riderAuth.resendEmail(email!);
+        ? await customerAuth.sendOtp(phone)
+        : await customerAuth.resendEmail(email!);
       setCode("");
       setDevCode(env.isDev && res.devCode ? res.devCode : null);
       startCountdown();

@@ -32,7 +32,7 @@ const RELEASES = [
     tag: "Company",
     title: "MapCars unveils brand and app preview at Chichester HQ",
     excerpt:
-      "A first look at the rider and driver apps, both built with safety and transparent pricing at their core.",
+      "A first look at the customer and driver apps, both built with safety and transparent pricing at their core.",
   },
 ];
 

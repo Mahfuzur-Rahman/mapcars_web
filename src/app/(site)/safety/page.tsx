@@ -114,7 +114,7 @@ export default function SafetyPage() {
         <SectionHead eyebrow="After you arrive" title="Accountability that lasts" />
         <div className="grid grid-2">
           <FeatureCard icon={AFTER.star} title="Two-way ratings">
-            Riders and drivers rate each other after every trip, keeping the
+            Customers and drivers rate each other after every trip, keeping the
             whole community accountable.
           </FeatureCard>
           <FeatureCard icon={AFTER.lock} title="Private by default">

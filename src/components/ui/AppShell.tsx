@@ -8,7 +8,7 @@ import LogoTile from "./Logo";
 
 /**
  * One navigation node. A node without `href` renders as a section heading —
- * that's how the admin menu catalog models its groups ("Riders", "Trips", …).
+ * that's how the admin menu catalog models its groups ("Customers", "Trips", …).
  */
 export type NavNode = {
   key: string;
@@ -18,12 +18,12 @@ export type NavNode = {
   children?: NavNode[];
 };
 
-export type PortalTone = "admin" | "driver" | "rider";
+export type PortalTone = "admin" | "driver" | "customer";
 
 const TONE: Record<PortalTone, { pill: string; label: string }> = {
   admin: { pill: "bg-brand-tint text-brand-ink", label: "Admin" },
   driver: { pill: "bg-accent-tint text-accent-ink", label: "Driver" },
-  rider: { pill: "bg-slate-100 text-ink-muted", label: "Account" },
+  customer: { pill: "bg-slate-100 text-ink-muted", label: "Account" },
 };
 
 /** Every href in the tree, so we can pick the single best match for `pathname`. */
@@ -55,7 +55,7 @@ function initials(name?: string) {
 }
 
 function NavItem({ node, activeHref }: { node: NavNode; activeHref: string | null }) {
-  // Menu rows whose path is a route *template* ("/admin/riders/[id]") are
+  // Menu rows whose path is a route *template* ("/admin/customers/[id]") are
   // catalog metadata, not destinations — they're only reached from a list row.
   // Next's <Link> throws on an unresolved dynamic segment, so skip them.
   if (node.href?.includes("[")) return null;
@@ -109,7 +109,7 @@ function NavItem({ node, activeHref }: { node: NavNode; activeHref: string | nul
 }
 
 /**
- * Shared chrome for every signed-in portal (admin, driver, rider). Owns the
+ * Shared chrome for every signed-in portal (admin, driver, customer). Owns the
  * sidebar, brand mark, active state and the responsive drawer so the three
  * layouts stay a thin config each.
  */

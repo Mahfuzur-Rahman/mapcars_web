@@ -112,7 +112,7 @@ export default function CookiesPage() {
                   </td>
                   <td>
                     Detects suspicious automated traffic, rapid bot requests, and unauthorised session
-                    takeovers to protect rider and driver accounts.
+                    takeovers to protect customer and driver accounts.
                   </td>
                   <td>
                     <strong>Yes</strong> (Legitimate Security Interest)
@@ -207,7 +207,7 @@ export default function CookiesPage() {
 
           <h2>6. Mobile applications (iOS and Android)</h2>
           <p>
-            The <strong>MapCars Rider</strong> and <strong>MapCars Driver</strong> mobile apps do not
+            The <strong>MapCars Customer</strong> and <strong>MapCars Driver</strong> mobile apps do not
             use traditional browser HTTP cookies. Instead, they utilize operating system secure storage
             (such as Apple Keychain and Android Keystore) to store encrypted authentication tokens and
             device push notification identifiers. For details on mobile device data, please review our{" "}

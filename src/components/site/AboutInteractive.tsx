@@ -168,7 +168,7 @@ const MILESTONES = [
 const FAQS = [
   {
     q: "What makes MapCars different from Uber, Bolt, and traditional taxi firms?",
-    a: "MapCars is 100% focused on the South Coast. We operate from Chichester under MAP CARS CHI LTD, meaning we are legally registered, locally compliant, and directly accountable. Unlike national apps that take up to 35% commission and gouge riders with sudden surge pricing, we provide drivers with 85%+ net earnings and riders with locked upfront prices.",
+    a: "MapCars is 100% focused on the South Coast. We operate from Chichester under MAP CARS CHI LTD, meaning we are legally registered, locally compliant, and directly accountable. Unlike national apps that take up to 35% commission and gouge customers with sudden surge pricing, we provide drivers with 85%+ net earnings and customers with locked upfront prices.",
   },
   {
     q: "Where is MapCars headquartered and legally registered?",
@@ -180,11 +180,11 @@ const FAQS = [
   },
   {
     q: "How do you guarantee passenger and driver safety?",
-    a: "Safety is our core foundation. Every single driver must hold a valid local authority Private Hire Vehicle (PHV) licence and undergo enhanced DBS background checks. Inside the app, riders benefit from live GPS tracking, one-tap 'Share My Ride' link sharing, and instant in-app emergency assistance.",
+    a: "Safety is our core foundation. Every single driver must hold a valid local authority Private Hire Vehicle (PHV) licence and undergo enhanced DBS background checks. Inside the app, customers benefit from live GPS tracking, one-tap 'Share My Ride' link sharing, and instant in-app emergency assistance.",
   },
   {
-    q: "How can I join the founding rider waitlist or apply to drive?",
-    a: "Riders can join our priority waitlist in under 30 seconds to receive launch alerts and exclusive founding rider credits. Licensed PHV drivers can apply through our driver onboarding portal to lock in our founding commission rate.",
+    q: "How can I join the founding customer waitlist or apply to drive?",
+    a: "Customers can join our priority waitlist in under 30 seconds to receive launch alerts and exclusive founding customer credits. Licensed PHV drivers can apply through our driver onboarding portal to lock in our founding commission rate.",
   },
 ];
 
@@ -445,7 +445,7 @@ export default function AboutInteractive() {
                   </svg>
                   <div>
                     <strong>Guaranteed Locked Fares:</strong>
-                    <span>Riders see exact prices before booking. No surprise surge spikes during rain or rush hours.</span>
+                    <span>Customers see exact prices before booking. No surprise surge spikes during rain or rush hours.</span>
                   </div>
                 </li>
                 <li className="compare-item check">

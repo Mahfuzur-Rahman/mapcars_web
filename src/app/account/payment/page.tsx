@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { riderTrips, ApiError, type TripSummary } from "@/lib/api";
+import { customerTrips, ApiError, type TripSummary } from "@/lib/api";
 
 const PAYMENT_STATUS_STYLE: Record<string, string> = {
   Paid: "bg-emerald-100 text-emerald-700",
@@ -14,7 +14,7 @@ export default function AccountPaymentPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    riderTrips
+    customerTrips
       .list()
       .then(setTrips)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load payment history"));

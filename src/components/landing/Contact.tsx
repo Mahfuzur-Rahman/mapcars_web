@@ -148,7 +148,7 @@ export default function Contact() {
                   <option value="" disabled>
                     Select a topic
                   </option>
-                  <option value="rider">I&apos;m a Rider</option>
+                  <option value="customer">I&apos;m a Customer</option>
                   <option value="driver">I want to Drive</option>
                   <option value="business">Business Inquiry</option>
                   <option value="press">Press &amp; Media</option>

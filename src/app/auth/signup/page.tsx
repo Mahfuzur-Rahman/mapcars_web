@@ -5,7 +5,7 @@ import "../auth.css";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { riderAuth, ApiError } from "@/lib/api";
+import { customerAuth, ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { normalizeUkPhone } from "@/lib/phone";
 import AuthShell from "@/components/auth/AuthShell";
@@ -77,7 +77,7 @@ export default function CustomerSignupPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await riderAuth.signup(email, password, fullName);
+      const res = await customerAuth.signup(email, password, fullName);
       const params = new URLSearchParams({ email, intent: "signup" });
       if (env.isDev && res.devCode) params.set("dev", res.devCode);
       router.push(`/auth/verify?${params}`);
@@ -94,7 +94,7 @@ export default function CustomerSignupPage() {
     setError(null);
     try {
       const normalized = normalizeUkPhone(phone);
-      const res = await riderAuth.sendOtp(normalized);
+      const res = await customerAuth.sendOtp(normalized);
       const params = new URLSearchParams({ phone: normalized, intent: "signup" });
       if (env.isDev && res.devCode) params.set("dev", res.devCode);
       router.push(`/auth/verify?${params}`);
@@ -109,7 +109,7 @@ export default function CustomerSignupPage() {
     <AuthShell
       headlineLead="Get moving with"
       headlineHighlight="MapCars"
-      tagline="Create your account in seconds and join thousands of riders getting ready for launch across the South Coast."
+      tagline="Create your account in seconds and join thousands of customers getting ready for launch across the South Coast."
     >
       <h2 className="auth-title">Create your account</h2>
       <p className="auth-sub">It only takes a minute to get started.</p>
