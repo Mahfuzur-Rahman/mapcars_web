@@ -2364,6 +2364,11 @@ a.poster-card:hover {
     transition: all var(--transition-base);
 }
 
+/* A word ("Upfront") in place of a number: a size down so it fits the card. */
+.stat-number.is-word {
+    font-size: 2.2rem;
+}
+
 .stat-card:hover {
     border-color: var(--border-hover);
     transform: translateY(-5px);
@@ -3231,6 +3236,10 @@ a.contact-value:hover {
 
     .stat-number {
         font-size: 2rem;
+    }
+
+    .stat-number.is-word {
+        font-size: 1.5rem;
     }
 }
 

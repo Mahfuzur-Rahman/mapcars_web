@@ -83,7 +83,9 @@ function StatsRow() {
           className="stat-card fade-in"
           style={{ transitionDelay: `${i * 0.1}s` }}
         >
-          <span className="stat-number">{stat.value}</span>
+          <span className={`stat-number${/^\d+$/.test(stat.value) ? "" : " is-word"}`}>
+            {stat.value}
+          </span>
           <span className="stat-label">{stat.label}</span>
         </div>
       ))}
