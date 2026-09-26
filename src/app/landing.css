@@ -2581,6 +2581,41 @@ a.contact-value:hover {
     transform: translateY(-1px);
 }
 
+/* Sending / sent states — were inline styles; same values. */
+.form-submit.is-sending { opacity: 0.7; }
+.form-submit.is-sent { background: linear-gradient(135deg, #10B981, #059669); }
+
+.form-status:empty { display: none; }
+.form-status {
+    margin-top: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #047857;
+    text-align: center;
+}
+
+.form-error {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+/* Contact-form honeypot: off-screen rather than display:none, which some
+   bots detect and skip. */
+.form-honeypot {
+    position: absolute;
+    left: -10000px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
 /* ---------- FOOTER ---------- */
 .footer {
     background: var(--bg-section);
@@ -3741,4 +3776,4 @@ a.contact-value:hover {
     .how-step-card {
         padding: 28px 20px;
     }
-}
+}

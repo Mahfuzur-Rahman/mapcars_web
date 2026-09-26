@@ -245,6 +245,26 @@ export const passwordReset = {
     bff<void>("POST", "/auth/password/reset", { email, userType, code, newPassword }),
 };
 
+// ── Contact form  (BFF: /api/bff/contact) — anonymous ────────────────────────
+
+export type ContactSubject = "customer" | "driver" | "business" | "press" | "other";
+
+export interface ContactRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  subject: ContactSubject;
+  /** ≤ 5000 characters. */
+  message: string;
+  /** Honeypot — always empty from a human. The API silently drops filled ones. */
+  website: string;
+}
+
+export const contactForm = {
+  /** 202 on success; 400 validation; 429 rate-limited. */
+  submit: (request: ContactRequest) => bff<void>("POST", "/contact", request),
+};
+
 // ── Admin auth  (BFF: /api/bff/admin/*) ──────────────────────────────────────
 
 export const adminAuth = {

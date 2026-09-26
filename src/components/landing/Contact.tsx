@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ApiError, contactForm, type ContactSubject } from "@/lib/api";
 
 type SubmitState = "idle" | "sending" | "sent";
+
+const MESSAGE_MAX = 5000;
 
 const CONTACT_ITEMS = [
   {
@@ -61,6 +64,7 @@ const CONTACT_ITEMS = [
 
 export default function Contact() {
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const timersRef = useRef<number[]>([]);
 
@@ -69,21 +73,42 @@ export default function Contact() {
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, []);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submitState !== "idle") return;
+    const data = new FormData(e.currentTarget);
+    const field = (name: string) => String(data.get(name) ?? "").trim();
+
+    setError(null);
     setSubmitState("sending");
-    timersRef.current.push(
-      window.setTimeout(() => {
-        setSubmitState("sent");
-        timersRef.current.push(
-          window.setTimeout(() => {
-            setSubmitState("idle");
-            formRef.current?.reset();
-          }, 3000),
-        );
-      }, 1500),
-    );
+    try {
+      await contactForm.submit({
+        firstName: field("first-name"),
+        lastName: field("last-name"),
+        email: field("email"),
+        subject: field("subject") as ContactSubject,
+        message: field("message"),
+        // Not trimmed-away-to-nothing on purpose: whatever a bot typed goes up
+        // as-is so the API can recognise it and drop the message silently.
+        website: String(data.get("website") ?? ""),
+      });
+      setSubmitState("sent");
+      timersRef.current.push(
+        window.setTimeout(() => {
+          setSubmitState("idle");
+          formRef.current?.reset();
+        }, 4000),
+      );
+    } catch (err) {
+      setSubmitState("idle");
+      setError(
+        err instanceof ApiError
+          ? err.status === 429
+            ? "You've sent a few messages in a short time. Please wait about 15 minutes, or email us at info@mapcars.uk."
+            : err.message
+          : "We couldn't send your message. Please try again, or email us at info@mapcars.uk.",
+      );
+    }
   };
 
   return (
@@ -161,21 +186,30 @@ export default function Contact() {
                   id="message"
                   name="message"
                   rows={5}
+                  maxLength={MESSAGE_MAX}
                   placeholder="Tell us what's on your mind..."
                   required
                 ></textarea>
               </div>
+              {/* Honeypot: invisible to people and skipped by keyboard and
+                  screen readers, so only a form-filling bot ever types here. */}
+              <div className="form-honeypot" aria-hidden="true">
+                <label htmlFor="website">Website</label>
+                <input
+                  type="text"
+                  id="website"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  defaultValue=""
+                />
+              </div>
               <button
                 type="submit"
-                className="form-submit"
                 disabled={submitState !== "idle"}
-                style={
-                  submitState === "sent"
-                    ? { background: "linear-gradient(135deg, #10B981, #059669)" }
-                    : submitState === "sending"
-                      ? { opacity: 0.7 }
-                      : undefined
-                }
+                className={`form-submit${
+                  submitState === "sent" ? " is-sent" : submitState === "sending" ? " is-sending" : ""
+                }`}
               >
                 {submitState === "idle" && (
                   <>
@@ -205,6 +239,14 @@ export default function Contact() {
                   </>
                 )}
               </button>
+              <p className="form-status" role="status" aria-live="polite">
+                {submitState === "sent" && "Thanks — we've got your message and will reply by email."}
+              </p>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
             </form>
           </div>
         </div>
