@@ -231,6 +231,20 @@ export const unifiedAuth = {
     bff<UnifiedSession>("POST", "/auth/google", { idToken, signUp, loginAs }),
 };
 
+// ── Password reset  (BFF: /api/bff/auth/password/*) — anonymous ──────────────
+
+export type ResettableUserType = "customer" | "driver";
+
+export const passwordReset = {
+  /** Always resolves (202) for a well-formed request — never reveals whether the account exists. */
+  forgot: (email: string, userType: ResettableUserType) =>
+    bff<void>("POST", "/auth/password/forgot", { email, userType }),
+
+  /** 204 on success; 400 with a message on a wrong/expired/burnt code or a weak password. */
+  reset: (email: string, userType: ResettableUserType, code: string, newPassword: string) =>
+    bff<void>("POST", "/auth/password/reset", { email, userType, code, newPassword }),
+};
+
 // ── Admin auth  (BFF: /api/bff/admin/*) ──────────────────────────────────────
 
 export const adminAuth = {

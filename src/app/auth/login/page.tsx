@@ -222,7 +222,16 @@ export default function LoginPage() {
               <div className="auth-field">
                 <div className="auth-row-between">
                   <label className="auth-label" htmlFor="password">Password</label>
-                  <Link href="/#contact" className="auth-link">Forgot password?</Link>
+                  <Link
+                    href={
+                      email.trim()
+                        ? `/auth/forgot-password?email=${encodeURIComponent(email.trim())}`
+                        : "/auth/forgot-password"
+                    }
+                    className="auth-link"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
                 <div className="auth-input-wrap">
                   <input

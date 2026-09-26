@@ -340,6 +340,50 @@
 }
 .auth-error svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
 
+/* Neutral-good notice ("we've emailed you a code", "password updated"). */
+.auth-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.auth-notice svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+
+.auth-tabs.is-flush,
+.auth-notice.is-flush { margin-top: 0; }
+
+/* Inline, per-field validation message. */
+.auth-field-error { font-size: 0.8rem; font-weight: 500; color: #b91c1c; }
+
+/* One-time code entry. */
+.auth-input.auth-code {
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+}
+
+/* Password rule checklist under a new-password field. */
+.auth-rules { display: grid; gap: 4px; margin: 2px 0 0; padding: 0; list-style: none; font-size: 0.8rem; color: var(--body); }
+.auth-rules li { display: flex; align-items: center; gap: 7px; }
+.auth-rules li::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line);
+  flex: none;
+}
+.auth-rules li.ok { color: #15803d; }
+.auth-rules li.ok::before { background: #22c55e; }
+
 .auth-hint { text-align: center; font-size: 0.8rem; color: var(--muted); }
 
 /* ---------------- Social sign-in (Google) ---------------- */
