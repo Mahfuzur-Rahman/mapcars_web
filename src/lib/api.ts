@@ -1039,6 +1039,121 @@ export const adminReports = {
   live: () => bff<AdminLive>("GET", "/admin/live"),
 };
 
+// ── Admin money  (BFF: /api/bff/admin/{transactions,payouts}) ────────────────
+// Mirrors Mapcars.Application.Admins.Dtos.AdminMoneyDtos. SuperAdmin or Admin.
+// Money is GBP decimals (pounds), not pence.
+
+export type PaymentStatusName =
+  | "Pending"
+  | "Collected"
+  | "Failed"
+  | "Processing"
+  | "ActionRequired"
+  | "Refunded"
+  | "Voided"
+  | "Authorized";
+
+/** One completed trip, with the fare split into our commission and the driver's share. */
+export interface AdminTransactionItem {
+  tripId: string;
+  completedAtUtc: string;
+  customerName: string | null;
+  driverName: string | null;
+  tier: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  fareAmount: number;
+  tipAmount: number;
+  platformFeeAmount: number;
+  driverEarnings: number;
+  paidAtUtc: string | null;
+  paymentFailureCode: string | null;
+  stripePaymentIntentId: string | null;
+  isWaived: boolean;
+}
+
+/** Over the whole filtered range, not just the returned page. */
+export interface AdminTransactionTotals {
+  count: number;
+  grossFares: number;
+  tips: number;
+  /** The platform's commission — our revenue. */
+  commission: number;
+  driverEarnings: number;
+  cashCollected: number;
+  cardCollected: number;
+  /** Card fares (plus tips) that failed or await authentication, not waived. */
+  outstanding: number;
+}
+
+export interface AdminTransactionsPage {
+  items: AdminTransactionItem[];
+  totals: AdminTransactionTotals;
+  skip: number;
+  take: number;
+}
+
+export interface AdminTransactionFilters {
+  method?: PaymentMethodName;
+  paymentStatus?: PaymentStatusName;
+  /** ISO UTC, inclusive. */
+  from?: string;
+  /** ISO UTC, exclusive. */
+  to?: string;
+  skip?: number;
+  take?: number;
+}
+
+export type PayoutStatusName = "Pending" | "InTransit" | "Paid" | "Failed" | "Canceled";
+
+export interface AdminPayoutItem {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  amount: number;
+  currency: string;
+  status: string;
+  stripePayoutId: string;
+  createdAtUtc: string;
+  arrivedAtUtc: string | null;
+}
+
+export interface AdminPayoutTotals {
+  count: number;
+  paid: number;
+  /** Pending or in transit. */
+  inFlight: number;
+  failed: number;
+}
+
+export interface AdminPayoutsPage {
+  items: AdminPayoutItem[];
+  totals: AdminPayoutTotals;
+  skip: number;
+  take: number;
+}
+
+export const adminMoney = {
+  transactions: (filters: AdminTransactionFilters = {}) => {
+    const q = new URLSearchParams();
+    if (filters.method) q.set("method", filters.method);
+    if (filters.paymentStatus) q.set("paymentStatus", filters.paymentStatus);
+    if (filters.from) q.set("from", filters.from);
+    if (filters.to) q.set("to", filters.to);
+    q.set("skip", String(filters.skip ?? 0));
+    q.set("take", String(filters.take ?? 50));
+    return bff<AdminTransactionsPage>("GET", `/admin/transactions?${q}`);
+  },
+
+  payouts: (opts: { status?: PayoutStatusName; skip?: number; take?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.status) q.set("status", opts.status);
+    q.set("skip", String(opts.skip ?? 0));
+    q.set("take", String(opts.take ?? 50));
+    return bff<AdminPayoutsPage>("GET", `/admin/payouts?${q}`);
+  },
+};
+
 // ── Posters  (BFF: /api/bff/admin/posters) — SuperAdmin or Admin ────────────
 // Landing-page promo banners. Admin CRUD goes through the BFF; the image and
 // the active-poster list are public/unauthenticated on the API, so the

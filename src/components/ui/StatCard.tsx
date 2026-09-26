@@ -11,6 +11,14 @@ const HINT_TONE: Record<StatTone, string> = {
   critical: "text-red-600",
 };
 
+/** Value colour when a tile needs to stand out (e.g. money owed > 0). */
+const VALUE_TONE: Record<StatTone, string> = {
+  muted: "text-ink",
+  positive: "text-accent-ink",
+  warning: "text-amber-700",
+  critical: "text-red-600",
+};
+
 /** Grid wrapper so every dashboard lays its tiles out identically. */
 export function StatGrid({
   children,
@@ -41,6 +49,7 @@ export default function StatCard({
   tone = "muted",
   icon,
   loading = false,
+  valueTone = "muted",
 }: {
   label: string;
   value: React.ReactNode;
@@ -48,6 +57,8 @@ export default function StatCard({
   tone?: StatTone;
   icon?: string;
   loading?: boolean;
+  /** Colours the number itself. Default ink; use sparingly, for real alerts. */
+  valueTone?: StatTone;
 }) {
   return (
     <Card>
@@ -68,7 +79,9 @@ export default function StatCard({
       {loading ? (
         <Skeleton className="mt-3 h-9 w-24" />
       ) : (
-        <p className="mt-2 font-display text-3xl font-bold tabular-nums tracking-tight text-ink">
+        <p
+          className={`mt-2 font-display text-3xl font-bold tabular-nums tracking-tight ${VALUE_TONE[valueTone]}`}
+        >
           {value}
         </p>
       )}
