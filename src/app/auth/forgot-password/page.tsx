@@ -40,11 +40,6 @@ const IC = {
       <path d="M5 12h14M13 6l6 6-6 6" />
     </svg>
   ),
-  back: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 12H5M11 18l-6-6 6-6" />
-    </svg>
-  ),
   eye: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
@@ -163,11 +158,6 @@ function ForgotPasswordFlow() {
       headlineHighlight="MapCars"
       tagline="Reset your password with a one-time code sent to your email."
     >
-      <Link href="/auth/login" className="auth-back">
-        {IC.back}
-        Back to sign in
-      </Link>
-
       <h2 className="auth-title">{title}</h2>
       <p className="auth-sub">{sub}</p>
 
@@ -339,6 +329,11 @@ function ForgotPasswordFlow() {
             Go to sign in {IC.arrow}
           </Link>
         </div>
+      )}
+      {step !== "done" && (
+        <p className="auth-alt">
+          Remembered it? <Link href="/auth/login">Sign in</Link>
+        </p>
       )}
     </AuthShell>
   );
