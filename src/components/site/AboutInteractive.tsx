@@ -145,9 +145,9 @@ const MILESTONES = [
   {
     year: "Early 2026",
     badge: "Fleet Growth",
-    title: "500+ Driver Partner Onboarding",
-    desc: "Word spread across Hampshire and West Sussex about our 85%+ driver earnings retention. Over 500 licensed, DBS-checked PHV drivers joined our founding driver registry.",
-    highlights: ["85%+ fair commission guarantee", "Full vehicle compliance inspection program", "Dedicated local driver support dispatch"],
+    title: "Driver Partner Onboarding",
+    desc: "Driver partners across Hampshire and West Sussex began signing up. Every applicant uploads their PHV licence and vehicle documents, and our team approves them before their first trip.",
+    highlights: ["Document review before approval", "Vehicle documents and photos checked", "Local driver support"],
   },
   {
     year: "Mid 2026",

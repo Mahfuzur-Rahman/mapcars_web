@@ -13,7 +13,7 @@ import {
 export const metadata: Metadata = {
   title: "About Us — MapCars | South Coast Ride-Sharing Platform",
   description:
-    "MapCars is operated by MAP CARS CHI LTD in Chichester, West Sussex. Connecting 13 South Coast towns with 85%+ driver retention, locked upfront fares, and 24/7 local safety.",
+    "MapCars is operated by MAP CARS CHI LTD in Chichester, West Sussex. Launching across 13 South Coast towns, with upfront fares and every driver approved before their first trip.",
   openGraph: {
     title: "About MapCars — South Coast Ride-Sharing Platform",
     description:
@@ -208,9 +208,9 @@ export default function AboutPage() {
         <StatBand
           items={[
             { num: "13", label: "South Coast Launch Towns" },
-            { num: "500+", label: "Licensed Founding Drivers" },
+            { num: "Vetted", label: "Drivers approved before going online" },
             { num: "85%+", label: "Driver Earnings Retention" },
-            { num: "24/7", label: "Dedicated Local Dispatch" },
+            { num: "Local", label: "Based in Chichester" },
           ]}
         />
       </Section>

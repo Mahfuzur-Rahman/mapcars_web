@@ -10,7 +10,7 @@ import {
 export const metadata: Metadata = {
   title: "Safety — MapCars",
   description:
-    "Safety is built into every MapCars ride — verified drivers, live tracking, trip sharing, and 24/7 support.",
+    "Safety is built into every MapCars ride — verified drivers, live tracking, trip sharing, and a support team you can reach by phone, email or WhatsApp.",
 };
 
 const BEFORE = {

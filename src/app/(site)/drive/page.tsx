@@ -75,7 +75,7 @@ export default function DrivePage() {
           items={[
             { num: "Low", label: "Driver-first commission" },
             { num: "Weekly", label: "Payouts" },
-            { num: "24/7", label: "Driver support" },
+            { num: "Local", label: "Support from our Chichester team" },
             { num: "You", label: "Set the hours" },
           ]}
         />
