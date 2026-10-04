@@ -290,10 +290,13 @@ function EmailBodyFrame({ html }: { html: string }) {
   };
 
   // The doctype keeps the frame out of quirks mode (where body height tracks the
-  // viewport). The injected <base> makes every link open in a new tab; the style
-  // gives the email the same typography as the surrounding admin UI.
+  // viewport). The meta CSP is defence in depth for legacy unencoded rows: the
+  // sandbox already blocks script, but remote images would still load (leaking the
+  // admin's IP), so only data: images and inline styles are allowed. The injected
+  // <base> makes every link open in a new tab; the style gives the email the same
+  // typography as the surrounding admin UI.
   const srcDoc =
-    '<!doctype html><base target="_blank"><style>body{margin:0;padding:14px 16px;font:14px/1.5 system-ui,sans-serif;color:#0f172a;overflow-wrap:anywhere}img{max-width:100%;height:auto}</style>' +
+    '<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:; style-src \'unsafe-inline\'"><base target="_blank"><style>body{margin:0;padding:14px 16px;font:14px/1.5 system-ui,sans-serif;color:#0f172a;overflow-wrap:anywhere}img{max-width:100%;height:auto}</style>' +
     html;
 
   return (
