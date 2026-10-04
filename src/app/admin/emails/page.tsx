@@ -251,7 +251,7 @@ export default function AdminEmailsPage() {
         </div>
       )}
 
-      {selected && <DetailView entry={selected} onClose={() => setSelected(null)} />}
+      {selected && <DetailView key={selected.id} entry={selected} onClose={() => setSelected(null)} />}
 
       {composing && (
         <ComposeForm
@@ -264,6 +264,48 @@ export default function AdminEmailsPage() {
         />
       )}
     </Page>
+  );
+}
+
+const EMAIL_FRAME_MIN_HEIGHT = 160;
+const EMAIL_FRAME_MAX_HEIGHT = 1200;
+
+/**
+ * Renders a logged email body in a sandboxed iframe. The body is NOT trusted:
+ * backend templates interpolate driver/customer/admin-supplied values (names,
+ * appeal text, ...), so injected markup like `<img onerror=...>` must never run
+ * in the admin's session. `sandbox` deliberately omits `allow-scripts`, so no
+ * script or inline event handler executes. `allow-same-origin` (safe without
+ * scripts) lets us read the document height to size the frame; the popups flags
+ * let links open in a new tab, outside the sandbox.
+ */
+function EmailBodyFrame({ html }: { html: string }) {
+  const [height, setHeight] = useState(EMAIL_FRAME_MIN_HEIGHT);
+
+  const measure = (frame: HTMLIFrameElement) => {
+    // The <html> element's own height, not scrollHeight: scrollHeight on the root is
+    // never smaller than the viewport (the frame), so it could grow but never shrink.
+    const h = frame.contentDocument?.documentElement?.offsetHeight;
+    if (h) setHeight(Math.min(Math.max(h + 2, EMAIL_FRAME_MIN_HEIGHT), EMAIL_FRAME_MAX_HEIGHT));
+  };
+
+  // The doctype keeps the frame out of quirks mode (where body height tracks the
+  // viewport). The injected <base> makes every link open in a new tab; the style
+  // gives the email the same typography as the surrounding admin UI.
+  const srcDoc =
+    '<!doctype html><base target="_blank"><style>body{margin:0;padding:14px 16px;font:14px/1.5 system-ui,sans-serif;color:#0f172a;overflow-wrap:anywhere}img{max-width:100%;height:auto}</style>' +
+    html;
+
+  return (
+    <iframe
+      title="Email body"
+      srcDoc={srcDoc}
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      referrerPolicy="no-referrer"
+      onLoad={(e) => measure(e.currentTarget)}
+      style={{ height }}
+      className="block w-full rounded-xl border border-line bg-slate-50/50"
+    />
   );
 }
 
@@ -286,11 +328,7 @@ function DetailView({ entry, onClose }: { entry: EmailLogDetail; onClose: () => 
         </div>
       )}
 
-      {/* Always our own backend copy or an admin's own Compose input — never customer/driver content. */}
-      <div
-        className="rounded-xl border border-line bg-slate-50/50 px-4 py-3.5 text-sm text-ink"
-        dangerouslySetInnerHTML={{ __html: entry.bodyHtml }}
-      />
+      <EmailBodyFrame html={entry.bodyHtml} />
     </SlideOver>
   );
 }

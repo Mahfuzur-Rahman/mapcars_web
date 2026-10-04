@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     title: "About MapCars — South Coast Ride-Sharing Platform",
     description:
       "Rooted in Chichester, West Sussex. Reimagining mobility across 13 South Coast towns from Southampton to Brighton with fair driver pay and locked fares.",
-    url: "https://mapcars.co.uk/about",
+    url: "https://mapcars.uk/about",
     siteName: "MapCars",
     locale: "en_GB",
     type: "website",
@@ -114,7 +114,7 @@ export default function AboutPage() {
               MapCars is operated by <strong>MAP CARS CHI LTD</strong> (Company Registration in England and Wales), headquartered in the cathedral city of Chichester. We are building the transport network that our region has always deserved — connecting 13 towns across Hampshire and West Sussex with the same uncompromising promise: safe rides, upfront fares, and a friendly, local face behind the wheel.
             </p>
             <p className="sec-desc">
-              Unlike distant tech giants that treat drivers as anonymous numbers and passengers as surge-pricing targets, we live, drive, and raise our families right here on the South Coast. We know the coastal routes, the railway connections, the hospital runs, and the seafront corridors because this is our home.
+              Unlike distant tech giants that treat drivers as anonymous numbers, we live, drive, and raise our families right here on the South Coast. We know the coastal routes, the railway connections, the hospital runs, and the seafront corridors because this is our home.
             </p>
 
             <div className="about-credentials-pill-list">
@@ -181,8 +181,8 @@ export default function AboutPage() {
             Drivers are the heartbeat of our platform. By offering Britain&rsquo;s most generous commission retention, we ensure drivers take home what they deserve, keeping service standards peerless.
           </FeatureCard>
 
-          <FeatureCard icon={PILLAR_ICONS.lockedPricing} title="Zero Surge Gouging">
-            The price you see when you book is the exact price you pay. No sudden 3x multiplier surprises when it starts to rain or after a concert lets out.
+          <FeatureCard icon={PILLAR_ICONS.lockedPricing} title="Clear Upfront Pricing">
+            The fare you see when you book is the fare you pay, quoted up front before you confirm, so there are no surprises mid-journey.
           </FeatureCard>
 
           <FeatureCard icon={PILLAR_ICONS.safetyDBS} title="Verified Safety Standards">

@@ -139,7 +139,7 @@ const MILESTONES = [
     year: "2025",
     badge: "Genesis",
     title: "Founded in Chichester",
-    desc: "MAP CARS CHI LTD was registered in England and Wales. Born out of frustration with predatory surge multipliers and indifferent national operators, our founding team set out to build a driver-friendly South Coast platform.",
+    desc: "MAP CARS CHI LTD was registered in England and Wales. Born out of frustration with indifferent national operators, our founding team set out to build a driver-friendly South Coast platform.",
     highlights: ["Chichester Headquarters established", "Local PHV operator compliance framework", "Initial founding team and driver advisory board"],
   },
   {
@@ -168,7 +168,7 @@ const MILESTONES = [
 const FAQS = [
   {
     q: "What makes MapCars different from Uber, Bolt, and traditional taxi firms?",
-    a: "MapCars is 100% focused on the South Coast. We operate from Chichester under MAP CARS CHI LTD, meaning we are legally registered, locally compliant, and directly accountable. Unlike national apps that take up to 35% commission and gouge customers with sudden surge pricing, we provide drivers with 85%+ net earnings and customers with locked upfront prices.",
+    a: "MapCars is 100% focused on the South Coast. We operate from Chichester under MAP CARS CHI LTD, meaning we are legally registered, locally compliant, and directly accountable. Unlike national apps that take up to 35% commission, we provide drivers with 85% of every fare and customers with clear upfront prices.",
   },
   {
     q: "Where is MapCars headquartered and legally registered?",
@@ -444,8 +444,8 @@ export default function AboutInteractive() {
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                   <div>
-                    <strong>Guaranteed Locked Fares:</strong>
-                    <span>Customers see exact prices before booking. No surprise surge spikes during rain or rush hours.</span>
+                    <strong>Clear Upfront Fares:</strong>
+                    <span>Customers see the exact fare before booking, and it does not change mid-trip.</span>
                   </div>
                 </li>
                 <li className="compare-item check">
@@ -492,15 +492,6 @@ export default function AboutInteractive() {
                   <div>
                     <strong>25%–35% Platform Deductions:</strong>
                     <span>Substantial cuts leave drivers overstretched, leading to driver shortages and long waits.</span>
-                  </div>
-                </li>
-                <li className="compare-item cross">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="comp-icon red">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
-                  <div>
-                    <strong>Predatory Surge Multipliers:</strong>
-                    <span>Fares double or triple without warning during events, bad weather, or train delays.</span>
                   </div>
                 </li>
                 <li className="compare-item cross">

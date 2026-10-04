@@ -12,27 +12,6 @@ export interface PosterItem {
   imageUrl?: string;
 }
 
-const FALLBACK_POSTERS: PosterItem[] = [
-  {
-    id: "demo-1",
-    title: "10% Off Your First 5 Rides",
-    subtitle: "Welcome to MapCars! Use promo code MAPWELCOME at checkout.",
-    imageUrl: "/assets/images/hero-car-branded-1.png",
-  },
-  {
-    id: "demo-2",
-    title: "Zero Surge Pricing Guarantee",
-    subtitle: "Fair, transparent rates across Chichester, Portsmouth & Southampton.",
-    imageUrl: "/assets/images/hero-car-branded-2.png",
-  },
-  {
-    id: "demo-3",
-    title: "Earn Up to 88% Per Trip as a Driver",
-    subtitle: "Join the South Coast's fastest-growing driver community today.",
-    imageUrl: "/assets/images/hero-car-branded-3.png",
-  },
-];
-
 function getCardState(index: number, activeIndex: number, total: number): {
   className: string;
   role: "center" | "right" | "left" | "hidden";
@@ -53,22 +32,19 @@ function getCardState(index: number, activeIndex: number, total: number): {
 }
 
 export default function PosterSection() {
-  const [items, setItems] = useState<PosterItem[]>(FALLBACK_POSTERS);
+  const [items, setItems] = useState<PosterItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeModal, setActiveModal] = useState<PosterItem | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
+  // No placeholder offers: if the API is unreachable or has no active posters
+  // the section renders nothing (`total === 0` below), so we never advertise
+  // promotions that don't exist.
   useEffect(() => {
     postersApi
       .listActive()
-      .then((data) => {
-        if (data && data.length > 0) {
-          setItems(data);
-        } else {
-          setItems(FALLBACK_POSTERS);
-        }
-      })
-      .catch(() => setItems(FALLBACK_POSTERS));
+      .then((data) => setItems(data && data.length > 0 ? data : []))
+      .catch(() => setItems([]));
   }, []);
 
   const total = items.length;

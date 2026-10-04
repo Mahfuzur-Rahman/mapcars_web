@@ -245,7 +245,7 @@ function CreateAdminForm({
             autoComplete="off"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="jane@mapcars.co.uk"
+            placeholder="jane@mapcars.uk"
           />
         </Field>
 

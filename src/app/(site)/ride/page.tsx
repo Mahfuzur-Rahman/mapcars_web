@@ -75,7 +75,7 @@ export default function RidePage() {
         <div className="grid grid-4">
           <FeatureCard icon={F.price} title="Upfront pricing">
             See the fare before you book. It won&rsquo;t change mid-trip — no
-            surprise surge, no guesswork.
+            guesswork.
           </FeatureCard>
           <FeatureCard icon={F.pin} title="Live tracking">
             Watch your driver arrive in real time and share your trip with
