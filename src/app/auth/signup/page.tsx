@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { customerAuth, ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
-import { normalizeUkPhone } from "@/lib/phone";
+import { isValidUkMobile, normalizeUkPhone } from "@/lib/phone";
 import AuthShell from "@/components/auth/AuthShell";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
@@ -80,6 +80,7 @@ export default function CustomerSignupPage() {
       const res = await customerAuth.signup(email, password, fullName);
       const params = new URLSearchParams({ email, intent: "signup" });
       if (env.isDev && res.devCode) params.set("dev", res.devCode);
+      if (res.resendAfterSeconds) params.set("wait", String(res.resendAfterSeconds));
       router.push(`/auth/verify?${params}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Signup failed");
@@ -97,6 +98,7 @@ export default function CustomerSignupPage() {
       const res = await customerAuth.sendOtp(normalized);
       const params = new URLSearchParams({ phone: normalized, intent: "signup" });
       if (env.isDev && res.devCode) params.set("dev", res.devCode);
+      if (res.resendAfterSeconds) params.set("wait", String(res.resendAfterSeconds));
       router.push(`/auth/verify?${params}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to send OTP");
@@ -217,11 +219,11 @@ export default function CustomerSignupPage() {
                 className="auth-input"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="7700 900000"
+                placeholder="7400 123456"
               />
             </div>
           </div>
-          <button type="submit" className="auth-btn" disabled={loading}>
+          <button type="submit" className="auth-btn" disabled={loading || !isValidUkMobile(phone)}>
             {loading ? <span className="auth-spinner" /> : <>Send verification code {IC.arrow}</>}
           </button>
           <p className="auth-hint">We&rsquo;ll text you a 6-digit code. Standard SMS rates apply.</p>

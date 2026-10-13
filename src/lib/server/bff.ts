@@ -321,8 +321,13 @@ export async function proxyPublic(req: NextRequest, apiPath: string): Promise<Ne
     // 202/204 (and a bare 429 from the rate limiter) carry no body. Serialising
     // that as JSON `null` is not just untidy: a 204 with any body at all makes
     // the Response constructor throw.
-    if (!data) return new NextResponse(null, { status: apiRes.status });
-    return NextResponse.json(data, { status: apiRes.status });
+    const res = data
+      ? NextResponse.json(data, { status: apiRes.status })
+      : new NextResponse(null, { status: apiRes.status });
+    // The rate limiter's 429 says how long to wait only in this header.
+    const retryAfter = apiRes.headers.get("Retry-After");
+    if (retryAfter) res.headers.set("Retry-After", retryAfter);
+    return res;
   } catch (reason) {
     return upstreamError(reason);
   }

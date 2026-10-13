@@ -14,6 +14,8 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** On a 429: how long to wait, from the problem body or the Retry-After header. */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -50,6 +52,8 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
         res.status === 429
           ? "Too many attempts. Please wait a few minutes and try again."
           : `HTTP ${res.status}`;
+      const headerWait = Number(res.headers.get("Retry-After"));
+      let retryAfterSeconds = Number.isFinite(headerWait) && headerWait > 0 ? headerWait : undefined;
       try {
         const err = (await res.json()) as Record<string, unknown> | null;
         if (err) {
@@ -59,11 +63,12 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
             firstValidationMessage(err.errors) ??
             str(err.title) ??
             message;
+          if (typeof err.retryAfterSeconds === "number") retryAfterSeconds = err.retryAfterSeconds;
         }
       } catch {
         /* not JSON (or empty — the rate limiter sends a bare 429) */
       }
-      throw new ApiError(res.status, message);
+      throw new ApiError(res.status, message, retryAfterSeconds);
     }
 
     if (res.status === 204) return undefined as T;
@@ -157,6 +162,8 @@ export interface DriverSession {
 export interface OtpSentResponse {
   message: string;
   devCode?: string; // only present in local/dev environment
+  /** Phone sends: seconds until another code may be requested. */
+  resendAfterSeconds?: number;
 }
 
 // Returned by the unified login (token stripped → cookie set based on role).
