@@ -185,34 +185,111 @@ function jsonWithToken(data: Record<string, unknown> | unknown[], cookieName: st
 type Renewal = { token: string; refreshToken: string; expiresInMinutes: number };
 
 /**
- * Trades the refresh cookie for a fresh access token. Returns null when there is
- * nothing to renew with, or the API rejects it (expired, revoked, or replayed) —
- * in which case the caller should clear both cookies and let the user sign in.
+ * What became of an attempt to renew the session. Only `rejected` ends it:
+ * every other failure is the network or a passing server fault, and
+ * signing people out for those was the bug.
  */
-async function renewSession(req: NextRequest, cookieName: string): Promise<Renewal | null> {
+type RenewOutcome =
+  | { kind: "renewed"; renewal: Renewal }
+  /** The API answered 401 (expired, revoked or replayed), or there was no refresh cookie. */
+  | { kind: "rejected" }
+  /** No usable answer: network, timeout, 5xx, 429, or a malformed body. */
+  | { kind: "failed" };
+
+/** Trades the refresh cookie for a fresh access token. */
+async function renewSession(req: NextRequest, cookieName: string): Promise<RenewOutcome> {
   const refreshToken = readRefreshCookie(req, cookieName);
-  if (!refreshToken) return null;
+  if (!refreshToken) return { kind: "rejected" };
 
   try {
     const apiRes = await callApi("/api/v1/auth/refresh", "POST", { refreshToken }, undefined, clientIpOf(req));
-    if (!apiRes.ok) return null;
+    if (apiRes.status === 401) return { kind: "rejected" };
+    if (!apiRes.ok) return { kind: "failed" };
 
-    const data = await readJson(apiRes);
-    const renewed = data as Partial<Renewal> | null;
-    if (!renewed || typeof renewed.token !== "string") return null;
+    const renewed = (await readJson(apiRes)) as Partial<Renewal> | null;
+    if (!renewed || typeof renewed.token !== "string") return { kind: "failed" };
 
     return {
-      token: renewed.token,
-      // The API rotates on use, so this differs from what we sent. Storing the
-      // successor is mandatory — replaying the old one reads as theft server-side
-      // and revokes every session the user has.
-      refreshToken: typeof renewed.refreshToken === "string" ? renewed.refreshToken : refreshToken,
-      expiresInMinutes: typeof renewed.expiresInMinutes === "number" ? renewed.expiresInMinutes : 60,
+      kind: "renewed",
+      renewal: {
+        token: renewed.token,
+        // The API rotates on use, so this differs from what we sent. Storing the
+        // successor is mandatory: replaying the old one after the grace window
+        // reads as theft server-side and revokes every session the user has.
+        refreshToken: typeof renewed.refreshToken === "string" ? renewed.refreshToken : refreshToken,
+        expiresInMinutes: typeof renewed.expiresInMinutes === "number" ? renewed.expiresInMinutes : 60,
+      },
     };
   } catch {
-    // Network trouble reaching the API — not a dead session. The caller falls
-    // back to a 401 and the user can simply try again.
-    return null;
+    return { kind: "failed" };
+  }
+}
+
+/**
+ * The response when renewal didn't produce a session. A rejection ends the
+ * session. A failure leaves the cookies exactly as they were, so the next
+ * request simply tries again.
+ */
+function sessionUnavailable(outcome: { kind: "rejected" } | { kind: "failed" }, cookieName: string): NextResponse {
+  if (outcome.kind === "rejected") {
+    const res = NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+    clearSessionCookies(res, cookieName);
+    return res;
+  }
+  return NextResponse.json(
+    { message: "We couldn't reach the server to keep you signed in. Please try again." },
+    { status: 503 },
+  );
+}
+
+/** An upstream response, plus any renewal on the way that still has to reach the cookies. */
+type Sent = { apiRes: Response; renewal: Renewal | null };
+
+/**
+ * Sends a request with the session's access token. It renews first when the
+ * access cookie is gone, which is the normal state after an hour away, and
+ * once more on a 401.
+ *
+ * It returns a finished NextResponse when no request could be made with a live
+ * session, or when sending threw. In that case any renewal that already
+ * happened is still written to the cookies: the API has rotated the old
+ * refresh token away, and a browser left holding it would trip theft
+ * detection once the grace window passed.
+ */
+async function sendWithSession(
+  req: NextRequest,
+  cookieName: string,
+  send: (token: string) => Promise<Response>,
+): Promise<Sent | NextResponse> {
+  let renewal: Renewal | null = null;
+  try {
+    let token = readAccessCookie(req, cookieName);
+    if (!token) {
+      const outcome = await renewSession(req, cookieName);
+      if (outcome.kind !== "renewed") return sessionUnavailable(outcome, cookieName);
+      renewal = outcome.renewal;
+      token = renewal.token;
+    }
+
+    let apiRes = await send(token);
+
+    // Expired mid-session. A 401 means the API did not act on the request, so
+    // replaying it after renewal is safe even for a POST.
+    if (apiRes.status === 401 && !renewal) {
+      const outcome = await renewSession(req, cookieName);
+      if (outcome.kind === "failed") return sessionUnavailable(outcome, cookieName);
+      if (outcome.kind === "renewed") {
+        renewal = outcome.renewal;
+        apiRes = await send(renewal.token);
+      }
+      // "rejected": fall through with the 401, and the caller clears the cookies.
+    }
+
+    return { apiRes, renewal };
+  } catch (reason) {
+    const res = upstreamError(reason);
+    if (renewal) setSessionCookies(res, cookieName, renewal);
+    return res;
   }
 }
 
@@ -317,12 +394,12 @@ export async function proxyRoleLogin(
 }
 
 /**
- * Attach the cookie's JWT as a bearer; on a 401, silently renew the session with
- * the refresh cookie and replay the request; only clear the cookies when the
- * refresh token is dead too.
+ * Attach the cookie's JWT as a bearer. On a missing cookie or a 401, renew the
+ * session with the refresh cookie and replay the request. Cookies are cleared
+ * only when the API says the session is over.
  *
  * The renewal lives here rather than in each route because every authed BFF
- * route already funnels through this function — so all of them gain it without
+ * route already funnels through this function, so all of them gain it without
  * being touched.
  */
 export async function proxyAuthed(
@@ -331,50 +408,18 @@ export async function proxyAuthed(
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
   cookieName: string,
 ): Promise<NextResponse> {
-  const token = readAccessCookie(req, cookieName);
+  const hasBody = method !== "GET" && method !== "DELETE";
+  // Read the body once: a retry needs it again, and the request stream cannot
+  // be consumed twice.
+  const body = hasBody ? await req.json().catch(() => ({})) : undefined;
 
-  // No access token, but possibly a live refresh cookie — the normal state after
-  // an hour away from the tab. Renew rather than reporting "not authenticated".
-  if (!token) {
-    const renewed = await renewSession(req, cookieName);
-    if (!renewed) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    return proxyAuthedWith(req, apiPath, method, cookieName, renewed.token, renewed);
-  }
+  const sent = await sendWithSession(req, cookieName, (token) =>
+    callApi(apiPath, method, body, token, clientIpOf(req)),
+  );
+  if (sent instanceof NextResponse) return sent;
+  const { apiRes, renewal } = sent;
 
-  return proxyAuthedWith(req, apiPath, method, cookieName, token, null);
-}
-
-/**
- * The body of [proxyAuthed], parameterised by which access token to use and
- * whether cookies still need writing from an earlier renewal.
- */
-async function proxyAuthedWith(
-  req: NextRequest,
-  apiPath: string,
-  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
-  cookieName: string,
-  token: string,
-  pendingRenewal: Renewal | null,
-): Promise<NextResponse> {
   try {
-    const hasBody = method !== "GET" && method !== "DELETE";
-    // Read the body once: a retry below needs it again, and the request stream
-    // cannot be consumed twice.
-    const body = hasBody ? await req.json().catch(() => ({})) : undefined;
-
-    let apiRes = await callApi(apiPath, method, body, token, clientIpOf(req));
-    let renewal = pendingRenewal;
-
-    // Expired mid-session. A 401 means the API did not act on the request, so
-    // replaying it after renewal is safe even for a POST.
-    if (apiRes.status === 401 && !pendingRenewal) {
-      const renewed = await renewSession(req, cookieName);
-      if (renewed) {
-        renewal = renewed;
-        apiRes = await callApi(apiPath, method, body, renewed.token, clientIpOf(req));
-      }
-    }
-
     const data = await readJson(apiRes);
 
     if (apiRes.status === 401) {
@@ -396,91 +441,112 @@ async function proxyAuthedWith(
 
     const res = jsonWithToken(data, cookieName);
     // jsonWithToken only sets cookies when the *body* carried credentials, which
-    // a normal API response doesn't — so a renewal still has to be written here.
+    // a normal API response doesn't, so a renewal still has to be written here.
     if (renewal) setSessionCookies(res, cookieName, renewal);
     return res;
   } catch (reason) {
-    return upstreamError(reason);
+    const res = upstreamError(reason);
+    if (renewal) setSessionCookies(res, cookieName, renewal);
+    return res;
   }
 }
 
-/** Forward a multipart/form-data POST (file upload) with the cookie's JWT as a bearer. */
+/** Forward a multipart/form-data POST (file upload) with the cookie's JWT as a bearer, renewing like proxyAuthed. */
 export async function proxyAuthedUpload(
   req: NextRequest,
   apiPath: string,
   cookieName: string,
 ): Promise<NextResponse> {
-  const token = readAccessCookie(req, cookieName);
-  if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  if (!API_BASE) return upstreamError(new Error("API base URL is not configured"));
 
+  let formData: FormData;
   try {
-    if (!API_BASE) throw new Error("API base URL is not configured");
-    const formData = await req.formData();
-    const apiRes = await fetch(`${API_BASE}${apiPath}`, {
+    formData = await req.formData();
+  } catch (reason) {
+    console.error(`[BFF] Upload to ${apiPath}: unreadable form data`, reason);
+    return upstreamError(reason);
+  }
+
+  const sent = await sendWithSession(req, cookieName, (token) =>
+    fetch(`${API_BASE}${apiPath}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      // A FormData is re-serialised on every fetch, so the retry after a
+      // renewal can send it again.
       body: formData,
       cache: "no-store",
       signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    }),
+  );
+  if (sent instanceof NextResponse) return sent;
+  const { apiRes, renewal } = sent;
+
+  try {
     const data = await readJson(apiRes);
 
     if (apiRes.status === 401) {
       const res = NextResponse.json(data ?? { message: "Unauthorized" }, { status: 401 });
-      res.cookies.set(cookieName, "", cookieOptions(0));
+      clearSessionCookies(res, cookieName);
       return res;
     }
     if (!apiRes.ok) {
       // Log the upstream error so it's visible in Next.js server logs.
       console.error(`[BFF] Upload to ${apiPath} failed: HTTP ${apiRes.status}`, data);
     }
-    return NextResponse.json(data, { status: apiRes.status });
+    const res = NextResponse.json(data, { status: apiRes.status });
+    if (renewal) setSessionCookies(res, cookieName, renewal);
+    return res;
   } catch (reason) {
     console.error(`[BFF] Upload to ${apiPath} threw:`, reason);
-    return upstreamError(reason);
+    const res = upstreamError(reason);
+    if (renewal) setSessionCookies(res, cookieName, renewal);
+    return res;
   }
 }
 
 /**
- * Stream a binary GET (image / PDF) through with the cookie's JWT as a bearer.
- * The file bytes never touch client-side JS storage — they flow straight from
- * the private bucket (via the API) to the browser. Preserves the upstream
- * content-type and forces `nosniff` so a spoofed type can't be MIME-confused.
+ * Stream a binary GET (image / PDF) through with the cookie's JWT as a bearer,
+ * renewing like proxyAuthed. The file bytes never touch client-side JS
+ * storage: they flow straight from the private bucket (via the API) to the
+ * browser. It preserves the upstream content-type and forces `nosniff`, so a
+ * spoofed type can't be MIME-confused.
  */
 export async function proxyAuthedDownload(
   req: NextRequest,
   apiPath: string,
   cookieName: string,
 ): Promise<NextResponse> {
-  const token = readAccessCookie(req, cookieName);
-  if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  if (!API_BASE) return upstreamError(new Error("API base URL is not configured"));
 
-  try {
-    if (!API_BASE) throw new Error("API base URL is not configured");
-    const apiRes = await fetch(`${API_BASE}${apiPath}`, {
+  const sent = await sendWithSession(req, cookieName, (token) =>
+    fetch(`${API_BASE}${apiPath}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
       signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    }),
+  );
+  if (sent instanceof NextResponse) return sent;
+  const { apiRes, renewal } = sent;
 
-    if (apiRes.status === 401) {
-      const res = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      res.cookies.set(cookieName, "", cookieOptions(0));
-      return res;
-    }
-    if (!apiRes.ok || !apiRes.body) {
-      return NextResponse.json({ message: "Not found" }, { status: apiRes.status });
-    }
+  if (apiRes.status === 401) {
+    const res = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    clearSessionCookies(res, cookieName);
+    return res;
+  }
 
+  let res: NextResponse;
+  if (!apiRes.ok || !apiRes.body) {
+    res = NextResponse.json({ message: "Not found" }, { status: apiRes.status });
+  } else {
     const headers = new Headers();
     headers.set("Content-Type", apiRes.headers.get("Content-Type") ?? "application/octet-stream");
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Cache-Control", "private, no-store");
-    return new NextResponse(apiRes.body, { status: 200, headers });
-  } catch (reason) {
-    return upstreamError(reason);
+    res = new NextResponse(apiRes.body, { status: 200, headers });
   }
+  if (renewal) setSessionCookies(res, cookieName, renewal);
+  return res;
 }
 
 /**
