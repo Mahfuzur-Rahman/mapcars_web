@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import EmailVerification from "@/components/profile/EmailVerification";
 import { driverAuth, ApiError, type DriverProfileResponse } from "@/lib/api";
 
 export default function DriverProfilePage() {
@@ -63,6 +64,9 @@ export default function DriverProfilePage() {
         marketingConsent,
       });
       setProfile(updated);
+      // Re-sync with what the API actually stored (it may normalise the email,
+      // and a blank field is not sent, so the old address is kept).
+      setEmail(updated.email ?? "");
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save profile");
@@ -121,12 +125,28 @@ export default function DriverProfilePage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">Email</label>
+            <label htmlFor="profile-email" className="mb-1 block text-sm font-medium text-zinc-700">
+              Email
+            </label>
             <input
+              id="profile-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+            {/* Keyed on the saved email so a newly saved address starts a fresh flow. */}
+            <EmailVerification
+              key={profile.email ?? ""}
+              savedEmail={profile.email}
+              isVerified={profile.isEmailVerified}
+              isDirty={email.trim() !== (profile.email ?? "")}
+              purpose="trip earnings summaries"
+              sendCode={driverAuth.sendEmailCode}
+              verifyCode={async (code) => {
+                const updated = await driverAuth.verifyProfileEmail(code);
+                setProfile(updated);
+              }}
             />
           </div>
 

@@ -159,6 +159,13 @@ export interface OtpSentResponse {
   devCode?: string; // only present in local/dev environment
 }
 
+// Returned by POST /api/v1/auth/{customers,drivers}/me/email/send-code.
+// `message` names the (masked) address the code went to.
+export interface EmailCodeSentResponse {
+  message: string;
+  devCode?: string | null; // only populated in local/dev environment
+}
+
 // Returned by the unified login (token stripped → cookie set based on role).
 // Only the fields for the matched `userType` are populated.
 export interface UnifiedSession {
@@ -515,6 +522,17 @@ export const customerAuth = {
       ...(opts?.accessibilityNeeds ? { accessibilityNeeds: opts.accessibilityNeeds } : {}),
     }),
 
+  /**
+   * Email a code to the SAVED profile email (not whatever is in an unsaved
+   * form field). 400 if there is no email or it is already verified.
+   */
+  sendEmailCode: () =>
+    bff<EmailCodeSentResponse>("POST", "/customer/me/email/send-code"),
+
+  /** Confirm the emailed code. A wrong/expired code is a 400 — not a sign-out. */
+  verifyProfileEmail: (code: string) =>
+    bff<CustomerProfileResponse>("POST", "/customer/me/email/verify", { code }),
+
   logout: () => bff<{ ok: boolean }>("POST", "/customer/logout"),
 };
 
@@ -531,6 +549,8 @@ export interface CustomerProfileResponse {
   marketingConsent: boolean;
   accessibilityNeeds?: string;
   isProfileComplete: boolean;
+  /** Receipts are only emailed to a verified address. Changing the email resets it. */
+  isEmailVerified: boolean;
 }
 
 // ── Customer trips  (BFF: /api/bff/customer/trips) ─────────────────────────────────
@@ -603,6 +623,17 @@ export const driverAuth = {
   updateProfile: (req: UpdateDriverProfileRequest) =>
     bff<DriverProfileResponse>("PATCH", "/driver/me", req),
 
+  /**
+   * Email a code to the SAVED profile email (not whatever is in an unsaved
+   * form field). 400 if there is no email or it is already verified.
+   */
+  sendEmailCode: () =>
+    bff<EmailCodeSentResponse>("POST", "/driver/me/email/send-code"),
+
+  /** Confirm the emailed code. A wrong/expired code is a 400 — not a sign-out. */
+  verifyProfileEmail: (code: string) =>
+    bff<DriverProfileResponse>("POST", "/driver/me/email/verify", { code }),
+
   logout: () => bff<{ ok: boolean }>("POST", "/driver/logout"),
 };
 
@@ -625,6 +656,8 @@ export interface DriverProfileResponse {
   status: string; // "PendingApproval" | "Approved" | "Suspended" | "Rejected"
   isOnline: boolean;
   isProfileComplete: boolean;
+  /** Earnings summaries are only emailed to a verified address. Changing the email resets it. */
+  isEmailVerified: boolean;
   averageRating: number | null;
   ratingCount: number;
   cancellationCount: number;
