@@ -16,3 +16,20 @@ export function normalizeUkPhone(input: string): string {
 
   return `+44${p}`;
 }
+
+/**
+ * The national digits of a UK mobile ("7" + 9 digits) from whatever was typed
+ * next to the fixed "+44" field, or null if it can't be one. This is the same
+ * rule as both apps. The API is still the authority: it also repairs and
+ * rejects.
+ */
+export function ukMobileDigits(input: string): string | null {
+  let digits = input.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("44")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return /^7\d{9}$/.test(digits) ? digits : null;
+}
+
+export function isValidUkMobile(input: string): boolean {
+  return ukMobileDigits(input) !== null;
+}

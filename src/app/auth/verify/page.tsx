@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { customerAuth, ApiError, type CustomerSession } from "@/lib/api";
 import { env } from "@/lib/env";
 
-// Codes expire 3 minutes after they're issued (matches the API).
-const CODE_TTL_SECONDS = 180;
+// Fallback cooldown when the server didn't say (email resends, or an old API).
+const DEFAULT_RESEND_SECONDS = 60;
 
 function VerifyForm() {
   const router = useRouter();
@@ -20,16 +20,18 @@ function VerifyForm() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // Countdown until the current code expires.
-  const [secondsLeft, setSecondsLeft] = useState(CODE_TTL_SECONDS);
+  // Seconds until "Resend code" is allowed. Started from the server's
+  // resendAfterSeconds (?wait=), and restarted from retryAfterSeconds on a 429.
+  const [initialWait] = useState(() => Number(params.get("wait")) || DEFAULT_RESEND_SECONDS);
+  const [secondsLeft, setSecondsLeft] = useState(initialWait);
   const [resending, setResending] = useState(false);
   // Dev-only: the API echoes the code back; show it to speed up local testing.
   const [devCode, setDevCode] = useState<string | null>(params.get("dev"));
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const startCountdown = useCallback(() => {
-    setSecondsLeft(CODE_TTL_SECONDS);
+  // Ticks secondsLeft down to 0. The starting value is set by the caller.
+  const runTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setSecondsLeft((s) => {
@@ -42,25 +44,30 @@ function VerifyForm() {
     }, 1000);
   }, []);
 
+  const startCountdown = useCallback(
+    (seconds: number) => {
+      setSecondsLeft(seconds);
+      runTimer();
+    },
+    [runTimer],
+  );
+
   useEffect(() => {
-    startCountdown();
+    // secondsLeft already starts at initialWait; just start ticking.
+    runTimer();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [startCountdown]);
+  }, [runTimer]);
 
   const label = phone ? `+44${phone.replace("+44", "")}` : email ?? "";
-  const expired = secondsLeft === 0;
+  const canResend = secondsLeft === 0;
   const mmss = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     if (code.length !== 6) {
       setError("Enter the 6-digit code");
-      return;
-    }
-    if (expired) {
-      setError("This code has expired. Please request a new one.");
       return;
     }
     setLoading(true);
@@ -78,6 +85,8 @@ function VerifyForm() {
       router.push(res.isProfileComplete ? "/" : "/auth/profile");
       router.refresh();
     } catch (err) {
+      // A wrong code is cleared, so the next attempt starts from empty boxes.
+      setCode("");
       setError(err instanceof ApiError ? err.message : "Verification failed");
     } finally {
       setLoading(false);
@@ -94,9 +103,10 @@ function VerifyForm() {
         : await customerAuth.resendEmail(email!);
       setCode("");
       setDevCode(env.isDev && res.devCode ? res.devCode : null);
-      startCountdown();
+      startCountdown(res.resendAfterSeconds ?? DEFAULT_RESEND_SECONDS);
       setInfo("A new code has been sent.");
     } catch (err) {
+      if (err instanceof ApiError && err.retryAfterSeconds) startCountdown(err.retryAfterSeconds);
       setError(err instanceof ApiError ? err.message : "Could not resend the code");
     } finally {
       setResending(false);
@@ -147,6 +157,7 @@ function VerifyForm() {
             <input
               type="text"
               inputMode="numeric"
+              autoComplete="one-time-code"
               pattern="[0-9]{6}"
               maxLength={6}
               required
@@ -158,38 +169,29 @@ function VerifyForm() {
             />
           </div>
 
-          {/* Expiry countdown */}
-          <p className="text-center text-sm text-zinc-500">
-            {expired ? (
-              <span className="text-red-500">Code expired</span>
-            ) : (
-              <>
-                Code expires in{" "}
-                <span className="font-semibold tabular-nums text-zinc-700">{mmss}</span>
-              </>
-            )}
-          </p>
-
           <button
             type="submit"
-            disabled={loading || code.length !== 6 || expired}
+            disabled={loading || code.length !== 6}
             className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? "Verifying…" : "Verify"}
           </button>
 
-          {/* Resend — only enabled once the current code has expired */}
           <button
             type="button"
             onClick={handleResend}
-            disabled={resending || !expired}
+            disabled={resending || !canResend}
             className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-zinc-400"
           >
-            {resending
-              ? "Sending…"
-              : expired
-                ? "Resend code"
-                : `Resend available when the code expires`}
+            {resending ? (
+              "Sending…"
+            ) : canResend ? (
+              "Resend code"
+            ) : (
+              <>
+                Resend code in <span className="tabular-nums">{mmss}</span>
+              </>
+            )}
           </button>
 
           <button
